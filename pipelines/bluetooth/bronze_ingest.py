@@ -126,12 +126,8 @@ def observations_bronze():
         spark.readStream
         .format("cloudFiles")
         .option("cloudFiles.format",             "json")
-        .option("cloudFiles.schemaLocation",     SCHEMA_LOCATION)
-        .option("cloudFiles.inferColumnTypes",   "true")
-        .option("cloudFiles.schemaEvolutionMode","addNewColumns")
         .option("cloudFiles.rescuedDataColumn",  "_rescued_data")
         .option("cloudFiles.maxFilesPerTrigger", "2000")
-        # BT events are smaller than Wi-Fi; allow more files per trigger
         .option("cloudFiles.maxBytesPerTrigger", "512m")
         .schema(BT_BRONZE_SCHEMA)
         .load(LANDING_PATH)
@@ -165,9 +161,7 @@ def observations_bronze_quarantine():
         spark.readStream
         .format("cloudFiles")
         .option("cloudFiles.format",             "json")
-        .option("cloudFiles.schemaLocation",     SCHEMA_LOCATION + "_q")
-        .option("cloudFiles.inferColumnTypes",   "false")
-        .option("cloudFiles.schemaEvolutionMode","addNewColumns")
+        .option("cloudFiles.schemaLocation",     SCHEMA_LOCATION + "/quarantine")
         .option("cloudFiles.rescuedDataColumn",  "_rescued_data")
         .load(LANDING_PATH)
     )

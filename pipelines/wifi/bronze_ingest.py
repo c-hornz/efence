@@ -132,14 +132,8 @@ def observations_bronze():
         spark.readStream
         .format("cloudFiles")
         .option("cloudFiles.format",             "json")
-        .option("cloudFiles.schemaLocation",     SCHEMA_LOCATION)
-        .option("cloudFiles.inferColumnTypes",   "true")
-        .option("cloudFiles.schemaEvolutionMode","addNewColumns")
-        # Rescue malformed records into _rescued_data column instead of failing
         .option("cloudFiles.rescuedDataColumn",  "_rescued_data")
-        # Process new files as they arrive; no artificial trigger delay
         .option("cloudFiles.useNotifications",   "false")
-        # Limit per micro-batch to control memory pressure on small clusters
         .option("cloudFiles.maxFilesPerTrigger", "1000")
         .schema(WIFI_BRONZE_SCHEMA)
         .load(LANDING_PATH)
@@ -180,9 +174,7 @@ def observations_bronze_quarantine():
         spark.readStream
         .format("cloudFiles")
         .option("cloudFiles.format",             "json")
-        .option("cloudFiles.schemaLocation",     SCHEMA_LOCATION + "_q")
-        .option("cloudFiles.inferColumnTypes",   "false")
-        .option("cloudFiles.schemaEvolutionMode","addNewColumns")
+        .option("cloudFiles.schemaLocation",     SCHEMA_LOCATION + "/quarantine")
         .option("cloudFiles.rescuedDataColumn",  "_rescued_data")
         .load(LANDING_PATH)
     )
