@@ -51,7 +51,7 @@ def _conf(key: str, default: str = None) -> str:
 
 
 LANDING_PATH     = _conf("efence.wifi.landing_path",    "/Volumes/efence/wifi_raw/landing")
-SCHEMA_LOCATION  = _conf("efence.wifi.schema_location", "/Volumes/efence/wifi_raw/_autoloader_schema")
+
 MAC_HASH_SALT    = _conf("efence.mac.hash.salt",        "change-me-in-secrets")
 
 
@@ -88,7 +88,7 @@ def _add_ingest_metadata(df):
         df
         .withColumn("ingest_time",   F.current_timestamp())
         .withColumn("event_date",    F.to_date(F.col("event_time")).cast("string"))
-        .withColumn("source_path",   F.input_file_name())
+        .withColumn("source_path",   F.col("_metadata.file_path"))
         # pipeline_id populated from Spark conf; set by DLT runtime
         .withColumn("pipeline_id",   F.lit(spark.conf.get("pipelines.id", "unknown")))
     )
@@ -174,7 +174,6 @@ def observations_bronze_quarantine():
         spark.readStream
         .format("cloudFiles")
         .option("cloudFiles.format",             "json")
-        .option("cloudFiles.schemaLocation",     SCHEMA_LOCATION + "/quarantine")
         .option("cloudFiles.rescuedDataColumn",  "_rescued_data")
         .load(LANDING_PATH)
     )
@@ -184,7 +183,7 @@ def observations_bronze_quarantine():
         .filter(F.col("_rescued_data").isNotNull())
         .withColumn("ingest_time",  F.current_timestamp())
         .withColumn("event_date",   F.to_date(F.current_timestamp()).cast("string"))
-        .withColumn("source_path",  F.input_file_name())
+        .withColumn("source_path",  F.col("_metadata.file_path"))
         .select(
             "_rescued_data",
             "sensor_id",
