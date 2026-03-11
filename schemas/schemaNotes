@@ -1,0 +1,45 @@
+
+● bt_schema.py (and wifi_schema.py) are shared schema definition modules — they don't run independently. Here's exactly what
+  they do and what you do with them:
+
+  What they are
+
+  Pure Python files that define StructType objects. The pipeline files import them to:
+  1. Tell Auto Loader what shape to enforce on incoming JSON
+  2. Give the silver @dlt.table decorator a strict expected output schema
+  3. Let unit tests validate transforms against the same schema the pipeline uses
+
+  What you do with them
+
+  Nothing special — they just need to live in your repo where the pipeline notebooks can import them. The import at the top
+  of each pipeline file is:
+
+  import sys
+  sys.path.insert(0, "/Workspace/Repos/efence/efence")
+  from schemas.bt_schema import BT_BRONZE_SCHEMA, BT_SILVER_SCHEMA
+
+  So the only requirement is that when you deploy via the asset bundle, the whole repo lands at
+  /Workspace/Repos/efence/efence in the Databricks workspace — which happens automatically when you use Databricks Git Repos
+  (Repos → Add Repo → your Git URL).
+
+  Practical checklist
+
+  1. Push this repo to GitHub/GitLab/Azure DevOps
+  2. In Databricks: Repos → Add Repo → paste your repo URL
+  3. The file lives at:
+     /Workspace/Repos/efence/efence/schemas/bt_schema.py
+  4. The pipeline notebooks find it via sys.path.insert() — done.
+
+  On your Raspberry Pi / local machine they're also used directly by the test data generator and unit tests, which is why
+  tests/test_bt_transforms.py does sys.path.insert(0, "..") rather than importing from Databricks.
+
+  What they are NOT
+
+  - Not a standalone script (no if __name__ == "__main__")
+  - Not deployed separately — they travel with the repo
+  - Not run directly by Databricks — they're just imported by the pipeline files that ARE run
+
+  If you're not using Databricks Git Repos and instead deploy via databricks bundle deploy, the bundle packages the whole
+  directory tree and uploads it, so the import path still resolves correctly.
+
+

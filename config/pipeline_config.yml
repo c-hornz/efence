@@ -1,0 +1,143 @@
+# E-Fence Pipeline Configuration
+# Reference configuration for all three Lakeflow Declarative Pipelines.
+# Override values per environment using environments/dev.yml, stage.yml, prod.yml.
+# Secret references use Databricks secret scope syntax: {{secrets/scope/key}}
+
+pipelines:
+
+  # -------------------------------------------------------------------------
+  # Pipeline 1: Wi-Fi Ingest (Bronze + Silver)
+  # -------------------------------------------------------------------------
+  efence-wifi:
+    name: "efence-wifi-ingest"
+    catalog: "efence"
+    target: "wifi_silver"          # default schema; bronze uses explicit three-part names
+    channel: "CURRENT"             # use PREVIEW for early feature access
+    edition: "ADVANCED"            # required for expectations and enhanced monitoring
+    continuous: false              # triggered mode (micro-batch via Lakeflow Jobs)
+    # For always-on streaming: continuous: true
+    development: false             # set true in dev to enable dev mode cluster reuse
+
+    libraries:
+      - notebook:
+          path: /Repos/efence/efence/pipelines/wifi/bronze_ingest
+      - notebook:
+          path: /Repos/efence/efence/pipelines/wifi/silver_normalize
+
+    configuration:
+      efence.wifi.landing_path:          "/Volumes/efence/wifi_raw/landing"
+      efence.wifi.schema_location:       "/Volumes/efence/wifi_raw/_autoloader_schema"
+      efence.mac.hash.salt:              "{{secrets/efence-secrets/mac-hash-salt}}"
+      efence.wifi.dedup_watermark_hours: "2"
+      efence.wifi.late_arrival_drop_days: "7"
+      spark.sql.streaming.statefulOperator.checkCorrectness.enabled: "false"  # allow dropDuplicatesWithinWatermark
+
+    clusters:
+      - label: "default"
+        spark_version: "14.3.x-scala2.12"
+        node_type_id: "m5d.2xlarge"         # replace with appropriate cloud VM
+        autoscale:
+          min_workers: 1
+          max_workers: 4
+          mode: "ENHANCED"
+        spark_conf:
+          spark.databricks.delta.preview.enabled: "true"
+
+    photon: true
+
+    notifications:
+      - email_recipients:
+          - "efence-ops@example.com"
+        alerts:
+          - on_update_failure
+          - on_flow_failure
+
+    # Checkpoint location (auto-managed by DLT; shown for reference)
+    # /pipelines/{pipeline_id}/checkpoints/
+
+
+  # -------------------------------------------------------------------------
+  # Pipeline 2: Bluetooth Ingest (Bronze + Silver)
+  # -------------------------------------------------------------------------
+  efence-bluetooth:
+    name: "efence-bluetooth-ingest"
+    catalog: "efence"
+    target: "bt_silver"
+    channel: "CURRENT"
+    edition: "ADVANCED"
+    continuous: false
+    development: false
+
+    libraries:
+      - notebook:
+          path: /Repos/efence/efence/pipelines/bluetooth/bronze_ingest
+      - notebook:
+          path: /Repos/efence/efence/pipelines/bluetooth/silver_normalize
+
+    configuration:
+      efence.bt.landing_path:            "/Volumes/efence/bt_raw/landing"
+      efence.bt.schema_location:         "/Volumes/efence/bt_raw/_autoloader_schema"
+      efence.mac.hash.salt:              "{{secrets/efence-secrets/mac-hash-salt}}"
+      efence.bt.dedup_watermark_hours:   "1"
+      efence.bt.late_arrival_drop_days:  "7"
+      spark.sql.streaming.statefulOperator.checkCorrectness.enabled: "false"
+
+    clusters:
+      - label: "default"
+        spark_version: "14.3.x-scala2.12"
+        node_type_id: "m5d.2xlarge"
+        autoscale:
+          min_workers: 1
+          max_workers: 4
+          mode: "ENHANCED"
+
+    photon: true
+
+    notifications:
+      - email_recipients:
+          - "efence-ops@example.com"
+        alerts:
+          - on_update_failure
+          - on_flow_failure
+
+
+  # -------------------------------------------------------------------------
+  # Pipeline 3: Gold Correlation & Analytics
+  # -------------------------------------------------------------------------
+  efence-gold:
+    name: "efence-gold-analytics"
+    catalog: "efence"
+    target: "gold"
+    channel: "CURRENT"
+    edition: "ADVANCED"
+    continuous: false
+    development: false
+
+    libraries:
+      - notebook:
+          path: /Repos/efence/efence/pipelines/gold/correlation
+
+    configuration:
+      efence.gold.copresence_window_seconds: "30"
+      efence.gold.proximity_threshold_m:     "50.0"
+      efence.gold.alert_rssi_threshold_dbm:  "-65"
+      efence.gold.alert_min_confidence:      "0.7"
+
+    clusters:
+      - label: "default"
+        spark_version: "14.3.x-scala2.12"
+        node_type_id: "m5d.4xlarge"     # gold correlations are more compute-intensive
+        autoscale:
+          min_workers: 2
+          max_workers: 8
+          mode: "ENHANCED"
+
+    photon: true
+
+    notifications:
+      - email_recipients:
+          - "efence-ops@example.com"
+          - "efence-security@example.com"
+        alerts:
+          - on_update_failure
+          - on_flow_failure

@@ -1,0 +1,110 @@
+
+● Bash(python tools/generate_test_data.py --wifi-devices 5 --wifi-transmissions 20 --bt-devices 8 --bt-transmissions 30 --sensors 2 --seed 42
+      --output-dir /tmp/efence_…)
+  ⎿  E-Fence Test Data Generator
+     ──────────────────────────────────────────────────
+       Seed:             42
+     … +30 lines (ctrl+o to expand)
+
+● Good. Let me verify the output looks correct against the schemas:
+
+● Bash(echo "=== Wi-Fi record ===" && python3 -c "import json; d=open('/tmp/efence_test/wifi/wifi_obs_$(ls /tmp/efence_test/wifi/ | head -1 | sed
+      "s/wifi_obs_//;s/.jso…)
+  ⎿  === Wi-Fi record ===
+     {
+       "sensor_id": "rpi-sensor-01",
+     … +29 lines (ctrl+o to expand)
+
+● Bash(python3 -c "import json; d=open(list(__import__('pathlib').Path('/tmp/efence_test/bt').glob('*.json'))[0]).readlines();
+      print(json.dumps(json.loads(d[0]), inden…)
+  ⎿  {
+       "sensor_id": "rpi-sensor-01",
+       "event_time": "2026-03-07T12:50:29.132Z",
+     … +29 lines (ctrl+o to expand)
+
+● Bash(# Validate all records parse cleanly and spot check field coverage
+      python3 -c "…)
+  ⎿  Wi-Fi records: 20, BT records: 30
+
+     Wi-Fi null counts:
+     … +44 lines (ctrl+o to expand)
+
+● All fields present, no missing keys, null rates are realistic. Let me do a final test of fault injection and split-by-sensor mode:
+
+● Bash(python tools/generate_test_data.py \
+        --wifi-devices 20 --wifi-transmissions 500 \…)
+  ⎿  E-Fence Test Data Generator
+     ──────────────────────────────────────────────────
+       Seed:             99
+     … +31 lines (ctrl+o to expand)
+
+● Everything works cleanly. Here's what was written to tools/generate_test_data.py:
+
+  ---
+  Usage reference
+
+  # Minimal smoke test
+  python tools/generate_test_data.py \
+    --wifi-devices 5 --wifi-transmissions 50 \
+    --bt-devices 8  --bt-transmissions 100
+
+  # Realistic 30-minute capture window, 4 sensors, reproducible
+  python tools/generate_test_data.py \
+    --wifi-devices 25 --wifi-transmissions 2000 \
+    --bt-devices 50  --bt-transmissions 8000 \
+    --sensors 4 --seed 42 --duration-minutes 30 \
+    --output-dir ./test_output
+
+  # One file per sensor (matches how a Pi would upload per-device)
+  python tools/generate_test_data.py \
+    --wifi-devices 20 --wifi-transmissions 500 \
+    --bt-devices 30  --bt-transmissions 1000 \
+    --sensors 3 --split-by-sensor
+
+  # Inject bad records to exercise quarantine table (5% fault rate)
+  python tools/generate_test_data.py \
+    --wifi-devices 10 --wifi-transmissions 500 \
+    --bt-devices 10  --bt-transmissions 500 \
+    --fault-rate 0.05
+
+  # Load test batch (10K batch size, print upload commands)
+  python tools/generate_test_data.py \
+    --wifi-devices 100 --wifi-transmissions 50000 \
+    --bt-devices 200  --bt-transmissions 200000 \
+    --sensors 8 --batch-size 10000 --print-upload-cmds
+
+  What it generates
+
+  ┌──────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │     Feature      │                                                     Detail                                                      │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Wi-Fi MACs       │ Real OUIs (Apple, TP-Link, Cisco, Intel, Asus, etc.) with 25% randomized client MACs                            │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ SSIDs            │ Realistic names + hidden networks (8% null)                                                                     │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Channels/bands   │ Correct 2.4/5/6 GHz channel→frequency mappings                                                                  │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Encryption       │ Weighted: WPA2 50%, WPA3 20%, EAP 15%, OPEN 7%, WEP 3%                                                          │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Frame types      │ APs: beacon/probe_resp; clients: probe_req/data/auth                                                            │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ BT profiles      │ Smartphone, fitness tracker, beacon, IoT, classic — each with correct adv_type weights                          │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ BT addresses     │ Public OUI-based or randomized (60% of smartphones)                                                             │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Manufacturer IDs │ Real BT SIG entries: Apple=76, Samsung=117, Google=224, Fitbit=742, etc.                                        │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Service UUIDs    │ Real GATT profiles: Battery, Heart Rate, HID, Nordic UART, etc.                                                 │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ RSSI             │ Gaussian jitter around a stable per-device base; SNR derived from RSSI                                          │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Timestamps       │ Poisson-distributed across the specified --duration-minutes window                                              │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Null rates       │ Per-field realistic rates (raw_payload: 70% null, heading: 100% null for fixed sensors, etc.)                   │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Fault injection  │ --fault-rate 0.05 injects null sensor_id, future timestamps, impossible RSSI values — lands in quarantine table │
+  ├──────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Output format    │ NDJSON (one JSON object per line) exactly matching bronze schema                                                │
+  └──────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+

@@ -1,0 +1,61 @@
+# E-Fence Databricks Asset Bundle
+# Deploy with: databricks bundle deploy --target dev|stage|prod
+# Validate with: databricks bundle validate
+
+bundle:
+  name: efence
+
+workspace:
+  host: "{{var.databricks_host}}"
+
+variables:
+  databricks_host:
+    description: "Databricks workspace URL"
+  wifi_pipeline_id:
+    description: "Pipeline ID for efence-wifi-ingest (set after first deploy)"
+  bt_pipeline_id:
+    description: "Pipeline ID for efence-bluetooth-ingest"
+  gold_pipeline_id:
+    description: "Pipeline ID for efence-gold-analytics"
+  catalog_name:
+    default: "efence"
+  wifi_landing_path:
+    default: "/Volumes/efence/wifi_raw/landing"
+  bt_landing_path:
+    default: "/Volumes/efence/bt_raw/landing"
+
+# Include pipeline and job resource definitions
+include:
+  - ../config/pipeline_config.yml
+  - ../jobs/efence_orchestration.yml
+
+targets:
+
+  dev:
+    mode: development
+    workspace:
+      host: "{{var.databricks_host}}"
+    variables:
+      catalog_name: "efence_dev"
+      wifi_landing_path: "/Volumes/efence_dev/wifi_raw/landing"
+      bt_landing_path: "/Volumes/efence_dev/bt_raw/landing"
+    run_as:
+      user_name: "efence-svc-dev@example.com"
+
+  stage:
+    workspace:
+      host: "{{var.databricks_host}}"
+    variables:
+      catalog_name: "efence_stage"
+    run_as:
+      user_name: "efence-svc-stage@example.com"
+
+  prod:
+    workspace:
+      host: "{{var.databricks_host}}"
+    variables:
+      catalog_name: "efence"
+    run_as:
+      user_name: "efence-svc-prod@example.com"
+    # In prod, pipelines run in triggered mode with full monitoring
+    # Override any dev-mode settings here

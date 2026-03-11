@@ -1,0 +1,165 @@
+# E-Fence Lakeflow Jobs Orchestration
+# Databricks Workflows (Lakeflow Jobs) YAML definition.
+# Deploy via: databricks bundle deploy
+
+resources:
+  jobs:
+
+    # -------------------------------------------------------------------------
+    # Job: efence-ingest-pipeline-trigger
+    # Triggers both ingest pipelines (WiFi + BT) in parallel,
+    # then runs gold after both succeed.
+    # Runs every 5 minutes in micro-batch mode.
+    # -------------------------------------------------------------------------
+    efence_ingest_pipeline_trigger:
+      name: "efence-ingest-pipeline-trigger"
+      description: >
+        Orchestrates the E-Fence medallion pipeline:
+        1. WiFi and BT bronze+silver pipelines run in parallel.
+        2. Gold correlation pipeline runs after both complete.
+
+      schedule:
+        quartz_cron_expression: "0 */5 * * * ?"   # every 5 minutes
+        timezone_id: "UTC"
+        pause_status: UNPAUSED
+
+      max_concurrent_runs: 1   # prevent overlap on slow runs
+
+      email_notifications:
+        on_failure:
+          - "efence-ops@example.com"
+        on_success: []          # suppress success emails to reduce noise
+        no_alert_for_skipped_runs: true
+
+      health:
+        rules:
+          - metric: RUN_DURATION_SECONDS
+            op: GREATER_THAN
+            value: 600          # alert if run takes > 10 minutes (likely stuck)
+
+      tasks:
+
+        # --- Task 1a: Wi-Fi ingest (bronze + silver) ---
+        - task_key: "wifi-ingest"
+          description: "Trigger efence-wifi-ingest DLT pipeline"
+          pipeline_task:
+            pipeline_id: "{{var.wifi_pipeline_id}}"   # set in bundle variables
+            full_refresh: false
+          timeout_seconds: 480    # 8 minutes max per trigger
+          retry_on_timeout: false
+          max_retries: 1
+          min_retry_interval_millis: 30000
+
+        # --- Task 1b: Bluetooth ingest (bronze + silver) ---
+        - task_key: "bt-ingest"
+          description: "Trigger efence-bluetooth-ingest DLT pipeline"
+          pipeline_task:
+            pipeline_id: "{{var.bt_pipeline_id}}"
+            full_refresh: false
+          timeout_seconds: 480
+          retry_on_timeout: false
+          max_retries: 1
+          min_retry_interval_millis: 30000
+
+        # --- Task 2: Gold correlation (runs after both ingest tasks) ---
+        - task_key: "gold-correlation"
+          description: "Trigger efence-gold-analytics DLT pipeline"
+          depends_on:
+            - task_key: "wifi-ingest"
+            - task_key: "bt-ingest"
+          pipeline_task:
+            pipeline_id: "{{var.gold_pipeline_id}}"
+            full_refresh: false
+          timeout_seconds: 600
+          retry_on_timeout: false
+          max_retries: 1
+          min_retry_interval_millis: 60000
+
+        # --- Task 3: DQ monitoring notebook ---
+        - task_key: "dq-monitoring"
+          description: "Run data quality monitoring and emit metrics"
+          depends_on:
+            - task_key: "gold-correlation"
+          notebook_task:
+            notebook_path: "/Repos/efence/efence/notebooks/dq_monitoring"
+            base_parameters:
+              run_date: "{{job.start_time.iso_date}}"
+          new_cluster:
+            spark_version: "14.3.x-scala2.12"
+            node_type_id: "m5d.large"
+            num_workers: 0
+            spark_conf:
+              spark.master: "local[*]"
+          timeout_seconds: 120
+
+
+    # -------------------------------------------------------------------------
+    # Job: efence-daily-backfill
+    # Runs once per day to backfill any missing data and run OPTIMIZE/VACUUM.
+    # -------------------------------------------------------------------------
+    efence_daily_maintenance:
+      name: "efence-daily-maintenance"
+      description: >
+        Daily maintenance: OPTIMIZE, VACUUM, data quality summary, and sensor health report.
+
+      schedule:
+        quartz_cron_expression: "0 0 2 * * ?"   # 02:00 UTC daily
+        timezone_id: "UTC"
+        pause_status: UNPAUSED
+
+      max_concurrent_runs: 1
+
+      email_notifications:
+        on_failure:
+          - "efence-ops@example.com"
+
+      tasks:
+        - task_key: "optimize-wifi-bronze"
+          notebook_task:
+            notebook_path: "/Repos/efence/efence/notebooks/maintenance"
+            base_parameters:
+              table: "efence.wifi_raw.observations_bronze"
+              operation: "OPTIMIZE"
+          new_cluster:
+            spark_version: "14.3.x-scala2.12"
+            node_type_id: "m5d.large"
+            num_workers: 1
+
+        - task_key: "optimize-bt-bronze"
+          notebook_task:
+            notebook_path: "/Repos/efence/efence/notebooks/maintenance"
+            base_parameters:
+              table: "efence.bt_raw.observations_bronze"
+              operation: "OPTIMIZE"
+          new_cluster:
+            spark_version: "14.3.x-scala2.12"
+            node_type_id: "m5d.large"
+            num_workers: 1
+
+        - task_key: "vacuum-all"
+          depends_on:
+            - task_key: "optimize-wifi-bronze"
+            - task_key: "optimize-bt-bronze"
+          notebook_task:
+            notebook_path: "/Repos/efence/efence/notebooks/maintenance"
+            base_parameters:
+              operation: "VACUUM_ALL"
+              retain_hours: "168"   # 7 days
+          new_cluster:
+            spark_version: "14.3.x-scala2.12"
+            node_type_id: "m5d.large"
+            num_workers: 1
+
+        - task_key: "daily-dq-report"
+          depends_on:
+            - task_key: "vacuum-all"
+          notebook_task:
+            notebook_path: "/Repos/efence/efence/notebooks/daily_dq_report"
+            base_parameters:
+              report_date: "{{job.start_time.iso_date}}"
+          new_cluster:
+            spark_version: "14.3.x-scala2.12"
+            node_type_id: "m5d.large"
+            num_workers: 0
+            spark_conf:
+              spark.master: "local[*]"

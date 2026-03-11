@@ -1,0 +1,49 @@
+# E-Fence Dev Environment Overrides
+# Applied on top of pipeline_config.yml for development deployments.
+# databricks bundle deploy --target dev
+
+environment: dev
+
+overrides:
+  pipelines:
+    efence-wifi:
+      development: true          # enables DLT dev mode (cluster reuse between runs)
+      continuous: false
+      configuration:
+        efence.wifi.landing_path:           "/Volumes/efence_dev/wifi_raw/landing"
+        efence.wifi.schema_location:        "/Volumes/efence_dev/wifi_raw/_autoloader_schema"
+        efence.mac.hash.salt:               "dev-salt-not-for-production"
+        efence.wifi.dedup_watermark_hours:  "1"
+      clusters:
+        - label: "default"
+          node_type_id: "m5d.large"         # smaller cluster in dev
+          autoscale:
+            min_workers: 1
+            max_workers: 2
+
+    efence-bluetooth:
+      development: true
+      continuous: false
+      configuration:
+        efence.bt.landing_path:             "/Volumes/efence_dev/bt_raw/landing"
+        efence.bt.schema_location:          "/Volumes/efence_dev/bt_raw/_autoloader_schema"
+        efence.mac.hash.salt:               "dev-salt-not-for-production"
+        efence.bt.dedup_watermark_hours:    "1"
+      clusters:
+        - label: "default"
+          node_type_id: "m5d.large"
+          autoscale:
+            min_workers: 1
+            max_workers: 2
+
+    efence-gold:
+      development: true
+      configuration:
+        efence.gold.copresence_window_seconds: "60"   # wider window in dev for testing
+        efence.gold.alert_rssi_threshold_dbm:  "-80"  # lower threshold in dev
+      clusters:
+        - label: "default"
+          node_type_id: "m5d.large"
+          autoscale:
+            min_workers: 1
+            max_workers: 2

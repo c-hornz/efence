@@ -1,0 +1,79 @@
+# E-Fence Production Environment Overrides
+# Enforces production-grade settings: no dev mode, larger clusters,
+# enhanced monitoring, strict secret references.
+
+environment: prod
+
+overrides:
+  pipelines:
+    efence-wifi:
+      development: false
+      continuous: false         # triggered mode, controlled by Lakeflow Jobs scheduler
+      configuration:
+        efence.wifi.landing_path:           "/Volumes/efence/wifi_raw/landing"
+        efence.wifi.schema_location:        "/Volumes/efence/wifi_raw/_autoloader_schema"
+        efence.mac.hash.salt:               "{{secrets/efence-secrets/mac-hash-salt}}"
+        efence.wifi.dedup_watermark_hours:  "2"
+        efence.wifi.late_arrival_drop_days: "7"
+      clusters:
+        - label: "default"
+          node_type_id: "m5d.4xlarge"
+          autoscale:
+            min_workers: 2
+            max_workers: 8
+            mode: "ENHANCED"
+          spark_conf:
+            spark.databricks.delta.preview.enabled: "true"
+            spark.sql.adaptive.enabled: "true"
+            spark.sql.adaptive.coalescePartitions.enabled: "true"
+      photon: true
+
+    efence-bluetooth:
+      development: false
+      continuous: false
+      configuration:
+        efence.bt.landing_path:             "/Volumes/efence/bt_raw/landing"
+        efence.bt.schema_location:          "/Volumes/efence/bt_raw/_autoloader_schema"
+        efence.mac.hash.salt:               "{{secrets/efence-secrets/mac-hash-salt}}"
+        efence.bt.dedup_watermark_hours:    "1"
+        efence.bt.late_arrival_drop_days:   "7"
+      clusters:
+        - label: "default"
+          node_type_id: "m5d.4xlarge"
+          autoscale:
+            min_workers: 2
+            max_workers: 8
+            mode: "ENHANCED"
+      photon: true
+
+    efence-gold:
+      development: false
+      configuration:
+        efence.gold.copresence_window_seconds: "30"
+        efence.gold.proximity_threshold_m:     "50.0"
+        efence.gold.alert_rssi_threshold_dbm:  "-65"
+        efence.gold.alert_min_confidence:      "0.7"
+      clusters:
+        - label: "default"
+          node_type_id: "m5d.8xlarge"
+          autoscale:
+            min_workers: 4
+            max_workers: 16
+            mode: "ENHANCED"
+      photon: true
+
+  # Production job overrides
+  jobs:
+    efence_ingest_pipeline_trigger:
+      schedule:
+        quartz_cron_expression: "0 */5 * * * ?"   # every 5 min in prod
+        pause_status: UNPAUSED
+      email_notifications:
+        on_failure:
+          - "efence-ops@example.com"
+          - "efence-oncall@example.com"
+
+    efence_daily_maintenance:
+      schedule:
+        quartz_cron_expression: "0 0 2 * * ?"    # 02:00 UTC
+        pause_status: UNPAUSED

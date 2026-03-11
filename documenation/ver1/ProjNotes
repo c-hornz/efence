@@ -1,0 +1,1270 @@
+
+❯ My platform is a Raspberry Pi. You are a senior data platform architect, RF telemetry engineer, and Databricks implementation specialist.
+
+Your task is to design and implement the Wi-Fi and Bluetooth modules of a system called E-Fence as TWO SEPARATE INGEST FLOWS inside a Databricks Lakeflow architecture.
+
+You must produce an implementation-ready architecture and code plan that is optimized for Databricks Lakeflow Spark Declarative Pipelines, Unity Catalog governance, and medallion
+architecture. The solution must support streaming or micro-batch ingestion, schema evolution, replayability, and downstream analytics for threat detection, device tracking, and
+anomaly detection.
+
+## SYSTEM CONTEXT
+
+E-Fence is a perimeter awareness and RF sensing platform. It collects nearby radio observations from edge devices and sends them to the lakehouse for enrichment, correlation, and
+analytics.
+
+There are two independent ingest domains:
+
+1. Wi-Fi ingest flow
+2. Bluetooth ingest flow
+
+These MUST remain logically separated at ingest, bronze, and initial normalization stages, but they should be designed so they can later be correlated in silver/gold layers for
+cross-protocol entity resolution.
+
+## PLATFORM TARGET
+
+The target platform is Databricks Lakeflow, using:
+- Lakeflow Spark Declarative Pipelines
+- Unity Catalog
+- Delta tables
+- Bronze / Silver / Gold architecture
+- Lakeflow Jobs for orchestration
+- Optional Auto Loader if ingest lands as files in cloud object storage
+- Optional Kafka/Event Hubs style streaming source if events arrive continuously
+
+Assume the preferred implementation is:
+- separate raw landing locations for Wi-Fi and Bluetooth
+- separate bronze streaming tables
+- separate silver normalized tables
+- optional shared gold analytic tables/views
+
+## PRIMARY DESIGN GOALS
+
+1. Keep Wi-Fi and Bluetooth as separate ingest pipelines.
+2. Preserve raw fidelity in bronze.
+3. Normalize both into protocol-specific silver schemas.
+4. Create a clean pattern for later joining/correlating in shared gold outputs.
+5. Support edge-to-cloud ingestion from sensor devices.
+6. Include data quality rules, deduplication, watermarking, and late-arrival handling.
+7. Make the design security-conscious and suitable for commercial/government deployment.
+8. Make the output implementation-ready for Databricks engineering.
+
+## E-FENCE DOMAIN REQUIREMENTS
+
+### Wi-Fi observations may include:
+- sensor_id
+- event_time
+- ingest_time
+- capture_file or message_id
+- bssid
+- ssid
+- channel
+- frequency_mhz
+- band (2.4/5/6 GHz)
+- rssi_dbm
+- snr_db
+- encryption / auth mode
+- vendor_oui
+- frame_type if available
+- client_mac if observed
+- ap_mac / transmitter_mac
+- latitude / longitude if sensor is fixed or mobile
+- heading / azimuth if directional collection exists
+- confidence
+- raw_payload / metadata blob
+
+### Bluetooth observations may include:
+- sensor_id
+- event_time
+- ingest_time
+- capture_file or message_id
+- device_address / mac
+- randomization flag if inferable
+- device_name if advertised
+- advertising_uuid
+- manufacturer_id
+- manufacturer_data
+- service_uuids
+- rssi_dbm
+- tx_power
+- protocol subtype (BLE/classic)
+- adv_type
+- vendor_oui or inferred manufacturer
+- latitude / longitude
+- heading / azimuth
+- confidence
+- raw_payload / metadata blob
+
+## REQUIRED OUTPUT FORMAT
+
+Return your answer in the following sections and in this exact order:
+
+### 1. Executive architecture summary
+Provide a concise but technically specific overview of the end-to-end design.
+
+### 2. Recommended Lakeflow topology
+Define:
+- catalogs
+- schemas
+- volumes / landing paths
+- bronze tables
+- silver tables
+- gold tables
+- checkpoints
+- expectations / quality rules
+- orchestration pattern with Lakeflow Jobs
+
+### 3. Data model design
+Provide separate schemas for:
+- raw Wi-Fi bronze
+- raw Bluetooth bronze
+- normalized Wi-Fi silver
+- normalized Bluetooth silver
+- shared gold correlation outputs
+
+For each table include:
+- table name
+- purpose
+- columns
+- types
+- partitioning or clustering recommendations
+- primary dedupe keys
+- retention guidance
+
+### 4. Ingest design decision
+Compare and recommend when to use:
+- Auto Loader from cloud object storage
+- Kafka/Event Hubs style streaming source
+
+State the pros/cons and give a recommended default pattern for E-Fence.
+
+### 5. Lakeflow implementation
+Produce implementation-oriented code examples in Python for Databricks Lakeflow Spark Declarative Pipelines.
+
+Generate code for:
+- Wi-Fi bronze ingest pipeline
+- Bluetooth bronze ingest pipeline
+- Wi-Fi silver normalization pipeline
+- Bluetooth silver normalization pipeline
+- Example gold correlation pipeline
+
+Assume JSON input payloads unless otherwise justified.
+Use realistic table names and Unity Catalog three-level naming.
+
+### 6. Data quality and governance
+Define:
+- required expectations
+- null handling
+- malformed record strategy
+- schema evolution handling
+- replay strategy
+- lineage/governance approach under Unity Catalog
+- PII/privacy handling for MAC/device identifiers
+- masking or hashing strategy where appropriate
+
+### 7. Correlation and analytics design
+Describe how Wi-Fi and Bluetooth remain separate initially, but can later be correlated for:
+- co-presence
+- repeated device sightings
+- directional movement
+- perimeter intrusion heuristics
+- suspicious unknown device scoring
+- sensor fusion across time and location
+
+### 8. Operational guidance
+Provide:
+- job orchestration plan
+- checkpointing strategy
+- backfill approach
+- cost controls
+- monitoring and alerting suggestions
+- recommended SLAs/SLOs
+- testing strategy for dev/stage/prod
+
+### 9. Final recommended repository structure
+Give a repo/folder structure for Databricks asset bundles or equivalent deployment structure including:
+- pipelines
+- notebooks or python modules
+- schemas
+- tests
+- config
+- environments
+
+### 10. Risks and design tradeoffs
+List the main tradeoffs and how to mitigate them.
+
+## IMPORTANT IMPLEMENTATION CONSTRAINTS
+
+- Do NOT merge Wi-Fi and Bluetooth into a single ingest stream.
+- Keep separate bronze and silver layers per protocol.
+- Gold may be shared.
+- Favor append-only raw bronze with immutable preservation.
+- Use event_time plus ingest_time.
+- Include deduplication logic.
+- Use deterministic IDs where possible.
+- Design for mobile and fixed sensors.
+- Design for intermittent edge connectivity.
+- Prefer Delta and Unity Catalog-native patterns.
+- Use Lakeflow terminology correctly.
+- Use medallion architecture.
+- Be explicit and concrete, not generic.
+
+## CODING REQUIREMENTS
+
+When generating code:
+- use Python examples for Databricks Lakeflow Spark Declarative Pipelines
+- use clear function boundaries and comments
+- include sample schemas using StructType where useful
+- include examples of expectations / validation
+- include example table decorators or equivalent Lakeflow constructs
+- include example transformations for normalization
+- include example dedupe logic using event keys and watermarking where appropriate
+
+## OUTPUT STYLE
+
+- Be implementation-first.
+- Be explicit.
+- Use concrete names.
+- Write as if handing off to a Databricks engineering team.
+- Do not give vague conceptual advice only.
+- Include code and architecture.
+- Include assumptions section if needed.
+
+● Recalled 1 memory (ctrl+o to expand)
+
+● Write(schemas/wifi_schema.py)
+  ⎿  Wrote 120 lines to schemas/wifi_schema.py
+       1 """
+       2 E-Fence Wi-Fi Schema Definitions
+       3 Shared schema definitions for Wi-Fi bronze and silver layers.
+       4 Used by DLT pipeline code to enforce and validate structure.
+       5 """
+       6
+       7 from pyspark.sql.types import (
+       8     StructType, StructField,
+       9     StringType, IntegerType, LongType, DoubleType,
+      10     BooleanType, TimestampType, MapType, ArrayType
+     … +110 lines (ctrl+o to expand)
+
+● Write(schemas/bt_schema.py)
+  ⎿  Wrote 112 lines to schemas/bt_schema.py
+       1 """
+       2 E-Fence Bluetooth Schema Definitions
+       3 Shared schema definitions for Bluetooth/BLE bronze and silver layers.
+       4 """
+       5
+       6 from pyspark.sql.types import (
+       7     StructType, StructField,
+       8     StringType, IntegerType, LongType, DoubleType,
+       9     BooleanType, TimestampType, MapType, ArrayType
+      10 )
+     … +102 lines (ctrl+o to expand)
+
+● Write(pipelines/wifi/bronze_ingest.py)
+  ⎿  Wrote 204 lines to pipelines/wifi/bronze_ingest.py
+      1 """
+      2 E-Fence Wi-Fi Bronze Ingest Pipeline
+      3 =====================================
+      4 Lakeflow Spark Declarative Pipeline (DLT)
+      5
+      6 Purpose:
+      7     Ingest raw Wi-Fi observation JSON files from the Unity Catalog Volume
+      8     landing zone using Auto Loader. Preserve full fidelity. Append only.
+      9     Generate deterministic event_id for downstream dedup.
+     … +194 lines (ctrl+o to expand)
+
+● Write(pipelines/wifi/silver_normalize.py)
+  ⎿  Wrote 265 lines to pipelines/wifi/silver_normalize.py
+      1 """
+      2 E-Fence Wi-Fi Silver Normalization Pipeline
+      3 ============================================
+      4 Lakeflow Spark Declarative Pipeline (DLT)
+      5
+      6 Purpose:
+      7     Read from Wi-Fi bronze, normalize, hash MAC addresses (PII),
+      8     deduplicate within a watermark window, enrich, and apply
+      9     rigorous data quality expectations.
+     … +255 lines (ctrl+o to expand)
+
+● Write(pipelines/bluetooth/bronze_ingest.py)
+  ⎿  Wrote 189 lines to pipelines/bluetooth/bronze_ingest.py
+       1 """
+       2 E-Fence Bluetooth Bronze Ingest Pipeline
+       3 ==========================================
+       4 Lakeflow Spark Declarative Pipeline (DLT)
+       5
+       6 Purpose:
+       7     Ingest raw Bluetooth/BLE observation JSON files from the Unity Catalog Volume
+       8     landing zone using Auto Loader. Append only. Full fidelity preservation.
+       9
+      10 Target table:
+     … +179 lines (ctrl+o to expand)
+
+● Write(pipelines/bluetooth/silver_normalize.py)
+  ⎿  Wrote 270 lines to pipelines/bluetooth/silver_normalize.py
+      1 """
+      2 E-Fence Bluetooth Silver Normalization Pipeline
+      3 ================================================
+      4 Lakeflow Spark Declarative Pipeline (DLT)
+      5
+      6 Purpose:
+      7     Read from Bluetooth bronze, normalize, hash device addresses (PII),
+      8     deduplicate within watermark window, derive path loss and distance,
+      9     resolve manufacturer IDs, and apply rigorous data quality expectations.
+     … +260 lines (ctrl+o to expand)
+
+● Write(pipelines/gold/correlation.py)
+  ⎿  Wrote 440 lines to pipelines/gold/correlation.py
+       1 """
+       2 E-Fence Gold Correlation & Analytics Pipeline
+       3 ==============================================
+       4 Lakeflow Spark Declarative Pipeline (DLT)
+       5
+       6 Purpose:
+       7     Correlate Wi-Fi and Bluetooth silver observations to produce:
+       8     1. Unified device timeline (one row per device observation, any protocol)
+       9     2. Co-presence events (same location, both Wi-Fi and BT seen together)
+      10     3. Device sighting windows (first/last seen per device per day)
+     … +430 lines (ctrl+o to expand)
+
+● Write(config/pipeline_config.yml)
+  ⎿  Wrote 143 lines to config/pipeline_config.yml
+       1 # E-Fence Pipeline Configuration
+       2 # Reference configuration for all three Lakeflow Declarative Pipelines.
+       3 # Override values per environment using environments/dev.yml, stage.yml, prod.yml.
+       4 # Secret references use Databricks secret scope syntax: {{secrets/scope/key}}
+       5
+       6 pipelines:
+       7
+       8   # -------------------------------------------------------------------------
+       9   # Pipeline 1: Wi-Fi Ingest (Bronze + Silver)
+      10   # -------------------------------------------------------------------------
+     … +133 lines (ctrl+o to expand)
+
+● Write(jobs/efence_orchestration.yml)
+  ⎿  Wrote 165 lines to jobs/efence_orchestration.yml
+       1 # E-Fence Lakeflow Jobs Orchestration
+       2 # Databricks Workflows (Lakeflow Jobs) YAML definition.
+       3 # Deploy via: databricks bundle deploy
+       4
+       5 resources:
+       6   jobs:
+       7
+       8     # -------------------------------------------------------------------------
+       9     # Job: efence-ingest-pipeline-trigger
+      10     # Triggers both ingest pipelines (WiFi + BT) in parallel,
+     … +155 lines (ctrl+o to expand)
+
+● Write(bundle/databricks.yml)
+  ⎿  Wrote 61 lines to bundle/databricks.yml
+      1 # E-Fence Databricks Asset Bundle
+      2 # Deploy with: databricks bundle deploy --target dev|stage|prod
+      3 # Validate with: databricks bundle validate
+      4
+      5 bundle:
+      6   name: efence
+      7
+      8 workspace:
+      9   host: "{{var.databricks_host}}"
+     … +51 lines (ctrl+o to expand)
+
+● Write(tests/test_wifi_transforms.py)
+  ⎿  Wrote 353 lines to tests/test_wifi_transforms.py
+      1 """
+      2 Unit Tests: Wi-Fi Silver Normalization Transforms
+      3 ===================================================
+      4 Tests run locally using PySpark (not DLT runtime).
+      5 The normalization functions are pure DataFrame transforms,
+      6 extractable and testable without the DLT decorator context.
+      7
+      8 Run with:
+      9     pytest tests/test_wifi_transforms.py -v
+     … +343 lines (ctrl+o to expand)
+
+● Write(tests/test_bt_transforms.py)
+  ⎿  Wrote 234 lines to tests/test_bt_transforms.py
+       1 """
+       2 Unit Tests: Bluetooth Silver Normalization Transforms
+       3 ======================================================
+       4 Tests run locally using PySpark (not DLT runtime).
+       5
+       6 Run with:
+       7     pytest tests/test_bt_transforms.py -v
+       8 """
+       9
+      10 import pytest
+     … +224 lines (ctrl+o to expand)
+
+● Write(tests/fixtures/wifi_sample.json)
+  ⎿  Wrote 3 lines to tests/fixtures/wifi_sample.json
+      1 {"sensor_id":"rpi-sensor-01","event_time":"2024-06-01T12:00:00.000Z","message_id":"msg-wifi-0001","capture_file":"capture_20240601_120000.pcap","bssid":"aa:bb:cc:dd:e
+        e:ff","ssid":"HomeNetwork","channel":36,"frequency_mhz":5180,"band":"5","rssi_dbm":-55,"snr_db":28.5,"encryption":"WPA2","auth_mode":"PSK","vendor_oui":"aa:bb:cc","fr
+        ame_type":"beacon","client_mac":null,"ap_mac":"aa:bb:cc:dd:ee:ff","transmitter_mac":"aa:bb:cc:dd:ee:ff","latitude":37.7749,"longitude":-122.4194,"heading":null,"azimu
+        th":null,"confidence":0.95,"raw_payload":null,"metadata":{"firmware":"1.2.3","antenna":"omni"}}
+      2 {"sensor_id":"rpi-sensor-01","event_time":"2024-06-01T12:00:05.000Z","message_id":"msg-wifi-0002","capture_file":"capture_20240601_120000.pcap","bssid":"02:ab:cd:ef:0
+        1:23","ssid":null,"channel":6,"frequency_mhz":2437,"band":"2.4","rssi_dbm":-72,"snr_db":15.0,"encryption":"OPEN","auth_mode":null,"vendor_oui":null,"frame_type":"prob
+        e_req","client_mac":"02:ab:cd:ef:01:23","ap_mac":null,"transmitter_mac":"02:ab:cd:ef:01:23","latitude":37.7749,"longitude":-122.4194,"heading":null,"azimuth":null,"co
+        nfidence":0.7,"raw_payload":null,"metadata":{}}
+      3 {"sensor_id":"rpi-sensor-02","event_time":"2024-06-01T12:00:10.000Z","message_id":"msg-wifi-0003","capture_file":null,"bssid":"11:22:33:44:55:66","ssid":"CorporateAP"
+        ,"channel":149,"frequency_mhz":5745,"band":"5","rssi_dbm":-45,"snr_db":35.0,"encryption":"WPA3","auth_mode":"SAE","vendor_oui":"11:22:33","frame_type":"beacon","clien
+        t_mac":null,"ap_mac":"11:22:33:44:55:66","transmitter_mac":"11:22:33:44:55:66","latitude":37.7751,"longitude":-122.4190,"heading":180.0,"azimuth":90.0,"confidence":0.
+        99,"raw_payload":"SGVsbG8gV29ybGQ=","metadata":{"location_tag":"building-a"}}
+
+● Write(tests/fixtures/bt_sample.json)
+  ⎿  Wrote 3 lines to tests/fixtures/bt_sample.json
+      1 {"sensor_id":"rpi-sensor-01","event_time":"2024-06-01T12:00:01.500Z","message_id":"msg-bt-0001","capture_file":null,"device_address":"f8:27:93:11:22:33","address_rand
+        omized":false,"device_name":"iPhone-14","advertising_uuid":"0000180F-0000-1000-8000-00805F9B34FB","manufacturer_id":76,"manufacturer_data":"0215aabbccdd","service_uui
+        ds":["0000180F-0000-1000-8000-00805F9B34FB"],"rssi_dbm":-62,"tx_power":4,"protocol_subtype":"BLE","adv_type":"ADV_IND","vendor_oui":"f8:27:93","latitude":37.7749,"lon
+        gitude":-122.4194,"heading":null,"azimuth":null,"confidence":0.9,"raw_payload":null,"metadata":{"hci_handle":"0x0041"}}
+      2 {"sensor_id":"rpi-sensor-01","event_time":"2024-06-01T12:00:02.000Z","message_id":"msg-bt-0002","capture_file":null,"device_address":"c2:55:a1:b2:c3:d4","address_rand
+        omized":true,"device_name":null,"advertising_uuid":null,"manufacturer_id":6,"manufacturer_data":"0000000000000000","service_uuids":[],"rssi_dbm":-78,"tx_power":null,"
+        protocol_subtype":"BLE","adv_type":"ADV_NONCONN_IND","vendor_oui":null,"latitude":37.7749,"longitude":-122.4194,"heading":null,"azimuth":null,"confidence":0.65,"raw_p
+        ayload":null,"metadata":{}}
+      3 {"sensor_id":"rpi-sensor-02","event_time":"2024-06-01T12:00:03.000Z","message_id":"msg-bt-0003","capture_file":null,"device_address":"00:1a:7d:da:71:13","address_rand
+        omized":false,"device_name":"RuuviTag","advertising_uuid":"6E400001-B5A3-F393-E0A9-E50E24DCCA9E","manufacturer_id":1177,"manufacturer_data":"0512c8013400","service_uu
+        ids":["6E400001-B5A3-F393-E0A9-E50E24DCCA9E"],"rssi_dbm":-55,"tx_power":-8,"protocol_subtype":"BLE","adv_type":"ADV_NONCONN_IND","vendor_oui":"00:1a:7d","latitude":37
+        .7751,"longitude":-122.4190,"heading":null,"azimuth":null,"confidence":0.88,"raw_payload":null,"metadata":{"sensor_type":"ruuvi_v5"}}
+
+● Write(config/environments/dev.yml)
+  ⎿  Wrote 49 lines to config/environments/dev.yml
+       1 # E-Fence Dev Environment Overrides
+       2 # Applied on top of pipeline_config.yml for development deployments.
+       3 # databricks bundle deploy --target dev
+       4
+       5 environment: dev
+       6
+       7 overrides:
+       8   pipelines:
+       9     efence-wifi:
+      10       development: true          # enables DLT dev mode (cluster reuse between runs)
+     … +39 lines (ctrl+o to expand)
+
+● Write(config/environments/prod.yml)
+  ⎿  Wrote 79 lines to config/environments/prod.yml
+       1 # E-Fence Production Environment Overrides
+       2 # Enforces production-grade settings: no dev mode, larger clusters,
+       3 # enhanced monitoring, strict secret references.
+       4
+       5 environment: prod
+       6
+       7 overrides:
+       8   pipelines:
+       9     efence-wifi:
+      10       development: false
+     … +69 lines (ctrl+o to expand)
+
+● Write(schemas/__init__.py)
+  ⎿  Wrote 10 lines to schemas/__init__.py
+       1 # E-Fence schema module
+       2 from schemas.wifi_schema import WIFI_BRONZE_SCHEMA, WIFI_SILVER_SCHEMA
+       3 from schemas.bt_schema import BT_BRONZE_SCHEMA, BT_SILVER_SCHEMA
+       4
+       5 __all__ = [
+       6     "WIFI_BRONZE_SCHEMA",
+       7     "WIFI_SILVER_SCHEMA",
+       8     "BT_BRONZE_SCHEMA",
+       9     "BT_SILVER_SCHEMA",
+      10 ]
+
+● Now let me save the architecture context to memory and deliver the full written architecture document:
+
+● Wrote 1 memory (ctrl+o to expand)
+
+● All implementation files are written. Here is the complete architecture document:
+
+  ---
+  E-Fence: Databricks Lakeflow Architecture
+
+  Wi-Fi and Bluetooth Ingest — Implementation Reference
+
+  ---
+  1. Executive Architecture Summary
+
+  E-Fence ingests RF observations from Raspberry Pi edge sensors into Databricks via two completely independent Lakeflow Declarative Pipeline flows — one for Wi-Fi, one for
+  Bluetooth. Each flow has its own landing volume, bronze streaming table, and silver normalization table. They share a gold analytics layer where cross-protocol correlation,
+  co-presence detection, and threat scoring occur.
+
+  End-to-end flow:
+
+  Raspberry Pi Sensor
+       │ JSON over HTTPS/SFTP/MQTT-bridge
+       ▼
+  Unity Catalog Volume (landing zone)
+    /Volumes/efence/wifi_raw/landing/       ← Wi-Fi JSON files
+    /Volumes/efence/bt_raw/landing/         ← BT JSON files
+       │
+       ▼ Auto Loader (cloudFiles)
+  ┌─────────────────────────────────────────────────────────┐
+  │ Pipeline 1: efence-wifi-ingest  (DLT)                   │
+  │  efence.wifi_raw.observations_bronze  (append-only)     │
+  │  efence.wifi_silver.observations      (normalized)      │
+  └─────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────┐
+  │ Pipeline 2: efence-bluetooth-ingest (DLT)               │
+  │  efence.bt_raw.observations_bronze    (append-only)     │
+  │  efence.bt_silver.observations        (normalized)      │
+  └─────────────────────────────────────────────────────────┘
+       │
+       ▼ spark.readStream.table() (cross-pipeline)
+  ┌─────────────────────────────────────────────────────────┐
+  │ Pipeline 3: efence-gold-analytics   (DLT)               │
+  │  efence.gold.device_timeline                            │
+  │  efence.gold.copresence_events                          │
+  │  efence.gold.perimeter_alerts                           │
+  └─────────────────────────────────────────────────────────┘
+       │
+       ▼
+  Databricks SQL / BI / ML / Alert Systems
+
+  Technology choices:
+  - Lakeflow Declarative Pipelines (DLT) for all pipeline logic — declarative expectations, lineage, auto-restart
+  - Auto Loader with cloudFiles.format=json for edge-to-cloud ingest
+  - Delta for all tables; append-only bronze with pipelines.reset.allowed=false
+  - Unity Catalog three-level namespace for governance, lineage, and ACL
+  - Lakeflow Jobs (Workflows) for orchestration: 5-minute micro-batch trigger, daily maintenance
+  - Databricks Secrets for the MAC hash salt — never in code or config plaintext
+
+  ---
+  2. Recommended Lakeflow Topology
+
+  Catalogs and Schemas
+
+  ┌─────────┬─────────────┬─────────────────────────────────────────────┐
+  │ Catalog │   Schema    │                   Purpose                   │
+  ├─────────┼─────────────┼─────────────────────────────────────────────┤
+  │ efence  │ wifi_raw    │ Wi-Fi bronze (append-only, restricted read) │
+  ├─────────┼─────────────┼─────────────────────────────────────────────┤
+  │ efence  │ wifi_silver │ Wi-Fi normalized (analyst readable)         │
+  ├─────────┼─────────────┼─────────────────────────────────────────────┤
+  │ efence  │ bt_raw      │ BT bronze (append-only, restricted read)    │
+  ├─────────┼─────────────┼─────────────────────────────────────────────┤
+  │ efence  │ bt_silver   │ BT normalized (analyst readable)            │
+  ├─────────┼─────────────┼─────────────────────────────────────────────┤
+  │ efence  │ gold        │ Shared correlation and alerting outputs     │
+  └─────────┴─────────────┴─────────────────────────────────────────────┘
+
+  In dev/stage: use efence_dev / efence_stage catalogs for full isolation.
+
+  Unity Catalog DDL (run once, before first pipeline deploy)
+
+  -- Catalogs (created by admin or via terraform)
+  CREATE CATALOG IF NOT EXISTS efence;
+  CREATE CATALOG IF NOT EXISTS efence_dev;
+
+  -- Schemas
+  CREATE SCHEMA IF NOT EXISTS efence.wifi_raw;
+  CREATE SCHEMA IF NOT EXISTS efence.wifi_silver;
+  CREATE SCHEMA IF NOT EXISTS efence.bt_raw;
+  CREATE SCHEMA IF NOT EXISTS efence.bt_silver;
+  CREATE SCHEMA IF NOT EXISTS efence.gold;
+
+  -- Volumes for landing zones
+  CREATE VOLUME IF NOT EXISTS efence.wifi_raw.landing;
+  CREATE VOLUME IF NOT EXISTS efence.bt_raw.landing;
+
+  -- Secret scope (created via CLI)
+  -- databricks secrets create-scope efence-secrets
+  -- databricks secrets put-secret efence-secrets mac-hash-salt --string-value "..."
+
+  -- ACLs: bronze tables restricted to pipeline service principals only
+  GRANT USE SCHEMA ON SCHEMA efence.wifi_raw TO `efence-pipeline-svc`;
+  GRANT SELECT ON SCHEMA efence.wifi_raw TO `efence-security-analysts`;
+  -- Revoke broad access to bronze (raw MACs)
+  REVOKE SELECT ON SCHEMA efence.wifi_raw FROM `account users`;
+
+  -- Silver and Gold readable by analysts
+  GRANT SELECT ON SCHEMA efence.wifi_silver TO `efence-analysts`;
+  GRANT SELECT ON SCHEMA efence.bt_silver TO `efence-analysts`;
+  GRANT SELECT ON SCHEMA efence.gold TO `efence-analysts`;
+
+  Checkpoints
+
+  DLT manages its own checkpoint state under /pipelines/{pipeline_id}/checkpoints/. Do not manually manage these. For Auto Loader specifically, the schema inference location is:
+  - Wi-Fi: /Volumes/efence/wifi_raw/_autoloader_schema
+  - BT: /Volumes/efence/bt_raw/_autoloader_schema
+
+  These persist across pipeline restarts and are critical — back them up before any forced full-refresh.
+
+  Orchestration Pattern
+
+  Every 5 minutes (Lakeflow Job):
+    [wifi-ingest task] ──┐
+                         ├──→ [gold-correlation task] → [dq-monitoring task]
+    [bt-ingest task]  ──┘
+
+  Daily 02:00 UTC (Lakeflow Job):
+    [optimize-wifi-bronze] ──┐
+                             ├──→ [vacuum-all] → [daily-dq-report]
+    [optimize-bt-bronze]  ──┘
+
+  ---
+  3. Data Model Design
+
+  3.1 Wi-Fi Bronze: efence.wifi_raw.observations_bronze
+
+  ┌─────────────────┬────────────────────┬─────────────────────────────────────────┐
+  │     Column      │        Type        │                  Notes                  │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ event_id        │ STRING NOT NULL    │ SHA-256 dedup key (generated at ingest) │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ sensor_id       │ STRING NOT NULL    │ Edge device identifier                  │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ event_time      │ TIMESTAMP NOT NULL │ RF observation time (from sensor)       │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ ingest_time     │ TIMESTAMP NOT NULL │ Lakehouse arrival time                  │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ event_date      │ STRING NOT NULL    │ Partition key yyyy-MM-dd                │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ message_id      │ STRING             │ Edge dedup hint                         │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ capture_file    │ STRING             │ pcap or capture reference               │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ bssid           │ STRING             │ Raw MAC — access controlled             │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ ssid            │ STRING             │ Network name                            │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ channel         │ INT                │ 802.11 channel number                   │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ frequency_mhz   │ INT                │ Center frequency                        │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ band            │ STRING             │ Raw string from sensor                  │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ rssi_dbm        │ INT                │ Signal strength                         │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ snr_db          │ DOUBLE             │ Signal/noise ratio                      │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ encryption      │ STRING             │ Raw string from sensor                  │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ auth_mode       │ STRING             │ PSK, EAP, SAE, etc.                     │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ vendor_oui      │ STRING             │ OUI prefix                              │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ frame_type      │ STRING             │ beacon, probe_req, etc.                 │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ client_mac      │ STRING             │ Raw MAC — station if observed           │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ ap_mac          │ STRING             │ Raw MAC                                 │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ transmitter_mac │ STRING             │ Raw MAC                                 │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ latitude        │ DOUBLE             │ Sensor location                         │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ longitude       │ DOUBLE             │ Sensor location                         │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ heading         │ DOUBLE             │ Sensor heading (degrees)                │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ azimuth         │ DOUBLE             │ Bearing of observation                  │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ confidence      │ DOUBLE             │ 0.0–1.0                                 │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ raw_payload     │ STRING             │ Base64 frame                            │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ metadata        │ MAP<STRING,STRING> │ Firmware-specific extras                │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ source_path     │ STRING             │ Auto Loader input file path             │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ pipeline_id     │ STRING             │ DLT pipeline run ID                     │
+  ├─────────────────┼────────────────────┼─────────────────────────────────────────┤
+  │ _rescued_data   │ STRING             │ Auto Loader rescue column               │
+  └─────────────────┴────────────────────┴─────────────────────────────────────────┘
+
+  Partitioning: event_date
+  Dedup key: event_id
+  Retention: 90 days log, 7 days deleted files
+  Access: Bronze schemas restricted to pipeline SP + security team only (raw MACs present)
+
+  ---
+  3.2 Bluetooth Bronze: efence.bt_raw.observations_bronze
+
+  ┌────────────────────┬────────────────────┬─────────────────────────────────────────────────────────────┐
+  │       Column       │        Type        │                            Notes                            │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ event_id           │ STRING NOT NULL    │ SHA-256(sensor_id|ts_ms|device_address|adv_type|message_id) │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ sensor_id          │ STRING NOT NULL    │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ event_time         │ TIMESTAMP NOT NULL │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ ingest_time        │ TIMESTAMP NOT NULL │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ event_date         │ STRING NOT NULL    │ Partition key                                               │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ message_id         │ STRING             │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ capture_file       │ STRING             │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ device_address     │ STRING             │ Raw BT/BLE MAC — access controlled                          │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ address_randomized │ BOOLEAN            │ From HCI LE Meta event                                      │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ device_name        │ STRING             │ GAP Complete Local Name                                     │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ advertising_uuid   │ STRING             │ 128-bit service UUID                                        │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ manufacturer_id    │ INT                │ BT SIG company ID                                           │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ manufacturer_data  │ STRING             │ Hex-encoded payload                                         │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ service_uuids      │ ARRAY              │ Complete/Incomplete UUID list                               │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ rssi_dbm           │ INT                │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ tx_power           │ INT                │ dBm from Tx Power Level AD type                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ protocol_subtype   │ STRING             │ BLE, BT_CLASSIC                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ adv_type           │ STRING             │ ADV_IND, ADV_NONCONN_IND, SCAN_RSP, etc.                    │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ vendor_oui         │ STRING             │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ latitude           │ DOUBLE             │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ longitude          │ DOUBLE             │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ heading            │ DOUBLE             │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ azimuth            │ DOUBLE             │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ confidence         │ DOUBLE             │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ raw_payload        │ STRING             │ Base64 HCI/AD payload                                       │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ metadata           │ MAP<STRING,STRING> │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ source_path        │ STRING             │                                                             │
+  ├────────────────────┼────────────────────┼─────────────────────────────────────────────────────────────┤
+  │ pipeline_id        │ STRING             │                                                             │
+  └────────────────────┴────────────────────┴─────────────────────────────────────────────────────────────┘
+
+  Partitioning: event_date
+  Dedup key: event_id
+  Note: BLE adv events arrive at high frequency (up to ~50 events/sec/sensor). Expect 10–50x the row count vs. Wi-Fi bronze.
+
+  ---
+  3.3 Wi-Fi Silver: efence.wifi_silver.observations
+
+  Key differences from bronze:
+  - bssid → bssid_hash (SHA-256 with salt)
+  - client_mac → client_mac_hash
+  - ap_mac → ap_mac_hash
+  - transmitter_mac → transmitter_mac_hash
+  - band canonicalized to "2.4GHz" / "5GHz" / "6GHz"
+  - encryption canonicalized to OPEN / WPA / WPA2 / WPA3 / WEP / UNKNOWN
+  - Added: distance_est_m, is_randomized_mac, is_hidden_ssid, dq_flags[]
+
+  Retention: 365 days
+  Partitioning: event_date
+
+  ---
+  3.4 Bluetooth Silver: efence.bt_silver.observations
+
+  Key differences from bronze:
+  - device_address → device_address_hash
+  - protocol_subtype canonicalized to BLE / BT_CLASSIC / UNKNOWN
+  - adv_type canonicalized to BT SIG canonical names
+  - Added: path_loss_db, distance_est_m, is_randomized_address, is_connectable, dq_flags[]
+
+  Retention: 365 days
+
+  ---
+  3.5 Gold Tables
+
+  ┌───────────────────────────────┬─────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────┐
+  │             Table             │                     Purpose                     │                                        Key Columns                                         │
+  ├───────────────────────────────┼─────────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ efence.gold.device_timeline   │ Unified append-only union of all RF             │ event_id, protocol, device_id_hash, sensor_id, event_time, rssi_dbm, distance_est_m,       │
+  │                               │ observations                                    │ lat/lon                                                                                    │
+  ├───────────────────────────────┼─────────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ efence.gold.copresence_events │ Wi-Fi + BT co-presence within 30s window        │ copresence_id, wifi_event_id, bt_event_id, wifi_device_hash, bt_device_hash,               │
+  │                               │                                                 │ copresence_score                                                                           │
+  ├───────────────────────────────┼─────────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ efence.gold.perimeter_alerts  │ Scored threat alerts                            │ alert_id, threat_score, alert_reasons[], protocol, device_id_hash                          │
+  └───────────────────────────────┴─────────────────────────────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Retention: device_timeline and copresence_events: 365 days. perimeter_alerts: 2 years (for audit trail).
+
+  ---
+  4. Ingest Design Decision
+
+  Auto Loader vs. Kafka/Event Hubs
+
+  ┌───────────────────────────┬──────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────┐
+  │         Dimension         │                 Auto Loader (cloudFiles)                 │                     Kafka / Event Hubs                     │
+  ├───────────────────────────┼──────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Latency                   │ Seconds to minutes (depends on trigger interval)         │ Sub-second possible                                        │
+  ├───────────────────────────┼──────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Edge compatibility        │ Pi writes files via HTTPS/SCP/S3 SDK — simple            │ Pi needs Kafka producer client — more complex              │
+  ├───────────────────────────┼──────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Replayability             │ Excellent — raw files persist in landing zone            │ Requires offset management, retention limits               │
+  ├───────────────────────────┼──────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Schema evolution          │ Built-in with schemaEvolutionMode=addNewColumns          │ Manual schema registry (Confluent/AWS Glue)                │
+  ├───────────────────────────┼──────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Backfill                  │ Drop files into landing, pipeline picks up automatically │ Replay from Kafka offset only while retained               │
+  ├───────────────────────────┼──────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Operational complexity    │ Low — no Kafka cluster to maintain                       │ High — Kafka/Event Hubs SLA, partitioning, consumer groups │
+  ├───────────────────────────┼──────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Cost                      │ Storage cost only; compute on trigger                    │ Kafka cluster + compute continuously running               │
+  ├───────────────────────────┼──────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Volume scale              │ Good up to ~millions files/day                           │ Better for billions of events/day continuous               │
+  ├───────────────────────────┼──────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Intermittent connectivity │ Ideal — Pi buffers locally, uploads when connected       │ Requires persistent connection or local Kafka broker       │
+  └───────────────────────────┴──────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────┘
+
+  Recommendation for E-Fence: Auto Loader is the correct default.
+
+  The Raspberry Pi is a field-deployed intermittent edge device. It should buffer observations locally (SQLite, JSON files, or a local queue) and upload batches when network
+  connectivity is available. Auto Loader handles file arrival natively, with no infrastructure beyond a writable cloud volume. Replayability is perfect — the raw files are the
+  source of truth.
+
+  Kafka becomes appropriate if:
+  - Sub-second latency is required for real-time alerting (< 5 second response to intrusion)
+  - Sensor density exceeds 50+ sensors generating >100K events/minute continuously
+  - A managed Kafka service (Confluent Cloud, Azure Event Hubs) is already in the stack
+
+  Hybrid pattern for low-latency alerting: Use Auto Loader for bronze/silver archival, and a lightweight MQTT → Databricks Structured Streaming path for real-time gold alert
+  triggers only. This avoids the full Kafka operational burden while achieving sub-second alert latency on the critical path.
+
+  ---
+  5. Lakeflow Implementation
+
+  All pipeline code is written to files in this repository. Summary of each file:
+
+  File map
+
+  ┌─────────────────────────────────────────┬─────────────────────────┬─────────────┐
+  │                  File                   │        Pipeline         │    Layer    │
+  ├─────────────────────────────────────────┼─────────────────────────┼─────────────┤
+  │ pipelines/wifi/bronze_ingest.py         │ efence-wifi-ingest      │ Bronze      │
+  ├─────────────────────────────────────────┼─────────────────────────┼─────────────┤
+  │ pipelines/wifi/silver_normalize.py      │ efence-wifi-ingest      │ Silver      │
+  ├─────────────────────────────────────────┼─────────────────────────┼─────────────┤
+  │ pipelines/bluetooth/bronze_ingest.py    │ efence-bluetooth-ingest │ Bronze      │
+  ├─────────────────────────────────────────┼─────────────────────────┼─────────────┤
+  │ pipelines/bluetooth/silver_normalize.py │ efence-bluetooth-ingest │ Silver      │
+  ├─────────────────────────────────────────┼─────────────────────────┼─────────────┤
+  │ pipelines/gold/correlation.py           │ efence-gold-analytics   │ Gold        │
+  ├─────────────────────────────────────────┼─────────────────────────┼─────────────┤
+  │ schemas/wifi_schema.py                  │ All Wi-Fi pipelines     │ Schema defs │
+  ├─────────────────────────────────────────┼─────────────────────────┼─────────────┤
+  │ schemas/bt_schema.py                    │ All BT pipelines        │ Schema defs │
+  └─────────────────────────────────────────┴─────────────────────────┴─────────────┘
+
+  Key code patterns used throughout
+
+  Deterministic event_id (Wi-Fi):
+  F.sha2(F.concat_ws("|",
+      F.col("sensor_id"),
+      F.unix_millis(F.col("event_time")).cast("string"),
+      F.coalesce(F.col("bssid"), F.lit("__no_bssid__")),
+      F.coalesce(F.col("message_id"), F.lit("__no_msg__")),
+  ), 256)
+
+  Deduplication within watermark (silver):
+  dlt.read_stream("observations_bronze")
+     .withWatermark("event_time", "2 hours")
+     .dropDuplicatesWithinWatermark(["event_id"])
+     .transform(_normalize_wifi)
+
+  MAC hashing with secret salt:
+  F.sha2(F.concat(
+      F.lower(F.regexp_replace(F.col("bssid"), "[:\\-.]", "")),
+      F.lit(MAC_HASH_SALT)   # from spark.conf / Databricks Secrets
+  ), 256)
+
+  Cross-pipeline streaming read (gold reading silver):
+  spark.readStream.table("efence.wifi_silver.observations")
+  # NOT dlt.read() — that only works within the same pipeline
+
+  Stream-stream window join (co-presence):
+  wifi_stream.join(
+      bt_stream,
+      on=(wifi["sensor_id"] == bt["sensor_id"])
+       & wifi["wifi_event_time"].between(
+           bt["bt_event_time"] - F.expr("INTERVAL 30 SECONDS"),
+           bt["bt_event_time"] + F.expr("INTERVAL 30 SECONDS"),
+       ),
+      how="inner",
+  )
+
+  ---
+  6. Data Quality and Governance
+
+  Expectation tiers
+
+  ┌───────────┬─────────────────────┬───────────────────────────────────────────────────────┐
+  │   Tier    │    DLT decorator    │                       Behavior                        │
+  ├───────────┼─────────────────────┼───────────────────────────────────────────────────────┤
+  │ Hard drop │ @dlt.expect_or_drop │ Row dropped; tracked in DLT event log                 │
+  ├───────────┼─────────────────────┼───────────────────────────────────────────────────────┤
+  │ Warn      │ @dlt.expect         │ Row passes; metric incremented                        │
+  ├───────────┼─────────────────────┼───────────────────────────────────────────────────────┤
+  │ Fail      │ @dlt.expect_or_fail │ Pipeline halts (use only for catastrophic violations) │
+  └───────────┴─────────────────────┴───────────────────────────────────────────────────────┘
+
+  Bronze expectations (warn only — preserve everything)
+
+  - valid_sensor_id: sensor_id IS NOT NULL AND LENGTH(sensor_id) > 0
+  - valid_event_time: event_time IS NOT NULL
+  - event_not_future (drop): event_time <= current_timestamp() + INTERVAL 5 MINUTES
+
+  Silver expectations (drop invalid rows)
+
+  - valid_event_id (drop): event_id IS NOT NULL AND LENGTH(event_id) = 64
+  - valid_sensor_id (drop): not null
+  - valid_event_time (drop): not null
+  - event_not_ancient (drop): within 7 days
+  - rssi_plausible (warn): within plausible dBm range
+  - confidence_valid (warn): 0.0–1.0
+  - coordinates_paired (warn): both lat/lon present or both null
+
+  Null handling
+
+  - Bronze: all fields nullable except sensor_id + event_time
+  - Silver: null fields produce dq_flags array entries (soft flagging)
+  - Gold: nulls propagate transparently; alert scoring handles nulls via coalesce
+
+  Malformed record strategy
+
+  - Auto Loader rescuedDataColumn="_rescued_data" captures JSON parse failures
+  - A separate observations_bronze_quarantine DLT table captures rescued records
+  - Monitor quarantine table volume via Databricks SQL alert: alert if quarantine > 1% of bronze volume
+
+  Schema evolution
+
+  - Auto Loader schemaEvolutionMode=addNewColumns handles new fields from firmware updates
+  - New columns appear in bronze automatically
+  - Silver schema is explicit (StructType) — new fields land in metadata MAP or require a schema version bump and pipeline code update
+  - Schema changes tracked in Unity Catalog lineage automatically
+
+  Replay strategy
+
+  Since bronze is append-only and source files persist in the landing volume:
+  1. To replay from source: drop the bronze table contents (if permitted), reset the Auto Loader checkpoint, restart the pipeline
+  2. pipelines.reset.allowed=false prevents accidental pipeline reset — requires explicit override
+  3. For partial backfill: copy historical files into the landing volume; Auto Loader picks them up on next trigger
+  4. Silver and gold can be rebuilt by resetting their pipelines (they read from bronze)
+
+  Lineage and governance
+
+  - Unity Catalog captures column-level lineage for all DLT tables automatically
+  - All tables tagged with efence.protocol and quality properties
+  - DLT event log (system.lakeflow.pipeline_events) provides full audit trail
+  - Use DESCRIBE HISTORY efence.wifi_silver.observations for Delta history audit
+
+  PII / MAC address handling
+
+  ┌───────────────┬─────────────────────────────────────────────────────┬────────────────────────────────────────────────────┐
+  │     Layer     │                     Wi-Fi MACs                      │                    BT Addresses                    │
+  ├───────────────┼─────────────────────────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ Bronze        │ Raw — ACL restricted to pipeline SP + security team │ Raw — same ACL                                     │
+  ├───────────────┼─────────────────────────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ Silver        │ SHA-256(normalize(mac) + salt)                      │ SHA-256(normalize(addr) + salt)                    │
+  ├───────────────┼─────────────────────────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ Gold          │ Hashed only                                         │ Hashed only                                        │
+  ├───────────────┼─────────────────────────────────────────────────────┼────────────────────────────────────────────────────┤
+  │ Mapping table │ efence.wifi_raw.mac_lookup (restricted, audited)    │ efence.bt_raw.address_lookup (restricted, audited) │
+  └───────────────┴─────────────────────────────────────────────────────┴────────────────────────────────────────────────────┘
+
+  The hash salt is stored in Databricks Secrets scope efence-secrets, key mac-hash-salt. It is injected into the pipeline as a Spark config value using the {{secrets/scope/key}}
+  substitution in the pipeline JSON configuration. The salt is never stored in code, config files, or notebooks.
+
+  For law enforcement / authorized de-anonymization requests: the mapping table is maintained as a separate, access-controlled Delta table that must be populated explicitly by an
+  authorized process — it is not automatically populated by the pipeline.
+
+  ---
+  7. Correlation and Analytics Design
+
+  Why Wi-Fi and BT stay separate through silver
+
+  - Different event frequencies (Wi-Fi: beacons ~10/sec per AP; BLE: advertisements 1–50/sec per device)
+  - Different identifier semantics (BSSID is an AP identifier; BLE address may be IRK-derived)
+  - Different dedup windows (Wi-Fi: 2h; BLE: 1h)
+  - Separate bronze schemas allow protocol-specific schema evolution without coupling
+  - Access control can differ per protocol
+
+  Gold correlation patterns implemented
+
+  1. Device Timeline (efence.gold.device_timeline)
+  Union of all observations with protocol tag and unified device_id_hash. Enables:
+  - Full movement history per hashed device ID
+  - Protocol-agnostic frequency analysis (how often is a device seen?)
+  - Time-series features for ML models
+
+  2. Co-presence Events (efence.gold.copresence_events)
+  Stream-stream window join: same sensor_id, within ±30 seconds. Enables:
+  - Cross-protocol entity resolution: one physical device with both Wi-Fi and BT radios
+  - Build candidate entity clusters: wifi_device_hash ↔ bt_device_hash linkage graph
+  - copresence_score drives confidence weighting
+
+  3. Perimeter Alerts (efence.gold.perimeter_alerts)
+  Rule-based scoring on:
+  - rssi_dbm >= -65 (device within ~10–15m of sensor)
+  - confidence >= 0.7
+  - Randomized/unknown identifier flag
+  - No prior sighting history (novel device)
+  - threat_score 0.0–1.0 composite
+
+  Additional correlation patterns (design, not yet implemented)
+
+  Repeated visitor analysis:
+  SELECT device_id_hash, protocol, sensor_id,
+         COUNT(*) as sighting_count,
+         MIN(event_time) as first_seen, MAX(event_time) as last_seen,
+         DATEDIFF(MAX(event_date), MIN(event_date)) as days_active
+  FROM efence.gold.device_timeline
+  GROUP BY device_id_hash, protocol, sensor_id
+  HAVING sighting_count > 5
+  ORDER BY sighting_count DESC;
+
+  Directional movement (multi-sensor):
+  -- RSSI gradient across sensors for same device in a time window
+  SELECT device_id_hash, window_start,
+         COLLECT_LIST(STRUCT(sensor_id, rssi_dbm, latitude, longitude)) as sensor_readings
+  FROM efence.gold.device_timeline
+  WHERE event_time BETWEEN :start AND :end
+  GROUP BY device_id_hash, window(event_time, '30 seconds')
+  HAVING SIZE(sensor_readings) > 1;
+
+  Unknown device scoring (ML-ready feature set):
+  - sighting_count_24h — frequency of sightings in last 24h
+  - first_seen_ever — is this device_id_hash new?
+  - max_rssi_ever — has this device ever been close?
+  - copresence_count — how many times correlated with BT/Wi-Fi?
+  - randomized_address — identity obfuscation flag
+  - unique_sensor_count — how many sensors have seen this device?
+
+  ---
+  8. Operational Guidance
+
+  Job orchestration
+
+  ┌────────────────────────────────┬─────────────────┬────────────────────────────┐
+  │              Job               │     Trigger     │            SLO             │
+  ├────────────────────────────────┼─────────────────┼────────────────────────────┤
+  │ efence-ingest-pipeline-trigger │ Every 5 minutes │ Complete within 4 minutes  │
+  ├────────────────────────────────┼─────────────────┼────────────────────────────┤
+  │ efence-daily-maintenance       │ Daily 02:00 UTC │ Complete within 60 minutes │
+  └────────────────────────────────┴─────────────────┴────────────────────────────┘
+
+  The 5-minute interval gives a practical end-to-end latency of:
+  - File written by Pi → Volume: ~10–30 seconds (upload)
+  - Auto Loader pickup + bronze ingest: ~60–90 seconds
+  - Silver normalization: ~60 seconds
+  - Gold correlation: ~90 seconds
+  - Total: ~4–5 minutes from RF observation to alert in gold
+
+  For sub-minute alerting, switch bronze + alert pipelines to continuous: true mode.
+
+  Checkpointing strategy
+
+  - DLT manages checkpoints internally under /pipelines/{pipeline_id}/
+  - Never delete checkpoint directories while a pipeline is running
+  - Auto Loader schema location (_autoloader_schema) must be backed up before forced full-refresh
+  - For blue/green pipeline deploys: create a new pipeline with a new ID, let it catch up, then cut over
+
+  Backfill approach
+
+  1. Copy historical JSON files into the landing volume
+  2. Auto Loader detects new files and processes them on the next trigger
+  3. Silver and gold rebuild automatically from bronze on the following trigger
+  4. For large historical loads: temporarily increase cloudFiles.maxFilesPerTrigger and run the pipeline manually until caught up
+  5. Never use full_refresh=true in production without explicit sign-off — it truncates all managed tables in the pipeline
+
+  Cost controls
+
+  - Photon enabled on all pipelines — 2–3x throughput improvement on JSON parsing
+  - Enhanced autoscaling — clusters scale to zero workers between micro-batches in triggered mode
+  - DLT triggered mode (not continuous) — cluster terminates after each pipeline run
+  - OPTIMIZE on schedule — daily compaction prevents small-file performance degradation
+  - VACUUM retain 7 days — avoids storing orphaned files beyond the logRetentionDuration
+  - Monitor via: SELECT * FROM system.lakeflow.pipeline_events WHERE level = 'ERROR'
+
+  Monitoring and alerting
+
+  -- DQ failure rate by pipeline and table (query from system tables)
+  SELECT pipeline_name, table_name, expectation_name,
+         failed_records, passed_records,
+         ROUND(failed_records * 100.0 / (failed_records + passed_records), 2) AS failure_pct
+  FROM system.lakeflow.expectations
+  WHERE timestamp >= CURRENT_DATE - INTERVAL 1 DAY
+  ORDER BY failure_pct DESC;
+
+  -- Alert: quarantine table growth
+  SELECT COUNT(*) as quarantine_count, event_date
+  FROM efence.wifi_raw.observations_bronze_quarantine
+  WHERE event_date = CURRENT_DATE
+  GROUP BY event_date;
+
+  Set Databricks SQL alerts on:
+  - Quarantine table row count > 100/hour (firmware issue)
+  - Pipeline run duration > 480 seconds (pipeline health)
+  - perimeter_alerts threat_score > 0.9 (operational security)
+  - Bronze ingest lag > 15 minutes (edge connectivity issue)
+
+  Recommended SLAs/SLOs
+
+  ┌────────────────────────────────────────────┬───────────────────────────────────────┐
+  │                   Metric                   │                  SLO                  │
+  ├────────────────────────────────────────────┼───────────────────────────────────────┤
+  │ Bronze ingest lag (file arrival to bronze) │ < 3 minutes                           │
+  ├────────────────────────────────────────────┼───────────────────────────────────────┤
+  │ Silver normalization lag                   │ < 2 minutes after bronze              │
+  ├────────────────────────────────────────────┼───────────────────────────────────────┤
+  │ Gold alert generation lag                  │ < 5 minutes end-to-end                │
+  ├────────────────────────────────────────────┼───────────────────────────────────────┤
+  │ Pipeline availability                      │ 99.5% (2h downtime/month)             │
+  ├────────────────────────────────────────────┼───────────────────────────────────────┤
+  │ DQ failure rate (bronze)                   │ < 0.5% of records quarantined         │
+  ├────────────────────────────────────────────┼───────────────────────────────────────┤
+  │ Bronze table uptime (no resets)            │ 100% (reset requires change advisory) │
+  └────────────────────────────────────────────┴───────────────────────────────────────┘
+
+  Testing strategy
+
+  ┌──────────────────────┬─────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────┐
+  │        Layer         │                               Method                                │                          Location                          │
+  ├──────────────────────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Unit tests           │ Pure PySpark transform functions, pytest                            │ tests/test_wifi_transforms.py, tests/test_bt_transforms.py │
+  ├──────────────────────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Integration tests    │ Small file batch into dev landing volume, assert row counts         │ Databricks notebook in dev workspace                       │
+  ├──────────────────────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Schema validation    │ Assert silver schema against WIFI_SILVER_SCHEMA StructType          │ tests/                                                     │
+  ├──────────────────────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ DQ expectation tests │ Inject known-bad records, assert quarantine table count             │ Integration test notebook                                  │
+  ├──────────────────────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Load tests           │ 10K file batch upload to dev, measure pipeline throughput           │ Manual, before prod cutover                                │
+  ├──────────────────────┼─────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────┤
+  │ Regression tests     │ Compare gold output row counts day-over-day (alert on > ±20% drift) │ Daily DQ report notebook                                   │
+  └──────────────────────┴─────────────────────────────────────────────────────────────────────┴────────────────────────────────────────────────────────────┘
+
+  ---
+  9. Repository Structure
+
+  efence/
+  ├── bundle/
+  │   └── databricks.yml              # Asset bundle: targets dev/stage/prod
+  ├── config/
+  │   ├── pipeline_config.yml         # Pipeline definitions for all 3 pipelines
+  │   └── environments/
+  │       ├── dev.yml                 # Dev overrides (smaller clusters, dev salt)
+  │       ├── stage.yml               # Stage overrides
+  │       └── prod.yml                # Prod overrides (secrets, large clusters)
+  ├── jobs/
+  │   └── efence_orchestration.yml    # Lakeflow Jobs definitions
+  ├── pipelines/
+  │   ├── wifi/
+  │   │   ├── __init__.py
+  │   │   ├── bronze_ingest.py        # DLT: Wi-Fi Auto Loader → bronze
+  │   │   └── silver_normalize.py     # DLT: Wi-Fi bronze → silver (MACs hashed)
+  │   ├── bluetooth/
+  │   │   ├── __init__.py
+  │   │   ├── bronze_ingest.py        # DLT: BT Auto Loader → bronze
+  │   │   └── silver_normalize.py     # DLT: BT bronze → silver (addresses hashed)
+  │   └── gold/
+  │       ├── __init__.py
+  │       └── correlation.py          # DLT: silver → device_timeline, copresence, alerts
+  ├── schemas/
+  │   ├── __init__.py
+  │   ├── wifi_schema.py              # WIFI_BRONZE_SCHEMA, WIFI_SILVER_SCHEMA
+  │   └── bt_schema.py                # BT_BRONZE_SCHEMA, BT_SILVER_SCHEMA
+  ├── notebooks/
+  │   ├── dq_monitoring.py            # DQ metrics notebook (run by Lakeflow Job)
+  │   ├── daily_dq_report.py          # Daily summary report
+  │   └── maintenance.py              # OPTIMIZE / VACUUM runner
+  └── tests/
+      ├── __init__.py
+      ├── test_wifi_transforms.py      # 25+ unit tests for Wi-Fi transforms
+      ├── test_bt_transforms.py        # 20+ unit tests for BT transforms
+      └── fixtures/
+          ├── wifi_sample.json         # 3 realistic Wi-Fi observation records
+          └── bt_sample.json           # 3 realistic BT observation records
+
+  Deployment:
+  # Validate bundle
+  databricks bundle validate --target dev
+
+  # Deploy to dev
+  databricks bundle deploy --target dev
+
+  # Deploy to prod
+  databricks bundle deploy --target prod
+
+  # Run pipeline manually (dev testing)
+  databricks bundle run --target dev efence-wifi-ingest
+
+  # Run unit tests (local)
+  pip install pyspark pytest
+  pytest tests/ -v
+
+  ---
+  10. Risks and Design Tradeoffs
+
+  ┌─────────────────────────────────────────┬─────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────┐
+  │             Risk / Tradeoff             │                         Impact                          │                               Mitigation                                │
+  ├─────────────────────────────────────────┼─────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ dropDuplicatesWithinWatermark requires  │ Older clusters fail                                     │ Pin cluster to 14.3.x-scala2.12 or later; document in bundle config     │
+  │ DBR 14.3+                               │                                                         │                                                                         │
+  ├─────────────────────────────────────────┼─────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ MAC hash salt compromise                │ Historical silver/gold data de-anonymizable             │ Rotate salt and rebuild silver/gold; do not store salt in logs or       │
+  │                                         │                                                         │ config files                                                            │
+  ├─────────────────────────────────────────┼─────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ Stream-stream join state growth         │ Gold co-presence join OOMs on large clusters            │ Cap watermark tightly (2h); monitor Spark UI state store size; use      │
+  │                                         │                                                         │ RocksDB state backend                                                   │
+  ├─────────────────────────────────────────┼─────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ Bronze pipelines.reset.allowed=false    │ Cannot accidentally truncate; also cannot easily fix    │ Provide explicit runbook for intentional reset (requires disabling this │
+  │                                         │ corrupted bronze                                        │  property, resetting, re-enabling)                                      │
+  ├─────────────────────────────────────────┼─────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ Auto Loader schema inference            │ Schema location grows; inferred types may be wrong      │ Use explicit schema= parameter (done); monitor _rescued_data column for │
+  │ accumulates columns                     │                                                         │  type mismatches                                                        │
+  ├─────────────────────────────────────────┼─────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ Large BLE event volumes                 │ 50 events/sec × 10 sensors = 43M events/day; silver     │ Keep BLE watermark at 1h (not 2h); use Photon; partition bronze well    │
+  │                                         │ dedup state grows                                       │                                                                         │
+  ├─────────────────────────────────────────┼─────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ Intermittent Pi connectivity            │ Gaps in bronze; late arrivals                           │ 7-day late-arrival drop window; Pi-side local buffering; design silver  │
+  │                                         │                                                         │ for replay from bronze                                                  │
+  ├─────────────────────────────────────────┼─────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ Single MAC hash salt                    │ Same physical device across schemas is linkable if both │ Acceptable for this use case; use different salts per protocol if       │
+  │                                         │  silvers are accessed together                          │ stricter isolation needed                                               │
+  ├─────────────────────────────────────────┼─────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ 5-minute micro-batch vs. continuous     │ 5-min latency is acceptable for perimeter alerts;       │ Switch gold perimeter_alerts pipeline to continuous only; keep ingest   │
+  │                                         │ continuous mode increases cost                          │ in triggered mode                                                       │
+  ├─────────────────────────────────────────┼─────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ Cross-pipeline streaming read in gold   │ Gold depends on silver tables being available; if       │ Version gold and silver schemas together; test in dev/stage before prod │
+  │                                         │ silver schema changes, gold breaks                      │  deploy                                                                 │
+  ├─────────────────────────────────────────┼─────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ No MAC → hash reverse mapping           │ Authorized de-anonymization requires a separately       │ Implement efence.wifi_raw.mac_lookup as a write-once, audited Delta     │
+  │                                         │ maintained lookup table                                 │ table; strictly access-controlled                                       │
+  ├─────────────────────────────────────────┼─────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
+  │ Raspberry Pi clock drift                │ event_time skew causes late-arrival drops or incorrect  │ Add NTP sync to Pi setup; watermark window accounts for ±30 min drift;  │
+  │                                         │ watermarking                                            │ log clock delta in metadata                                             │
+  └─────────────────────────────────────────┴─────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────┘
+
+  ---
+  Implementation files written to /home/oni/projects/efence/:
+
+  schemas/wifi_schema.py
+  schemas/bt_schema.py
+  schemas/__init__.py
+  pipelines/wifi/bronze_ingest.py
+  pipelines/wifi/silver_normalize.py
+  pipelines/bluetooth/bronze_ingest.py
+  pipelines/bluetooth/silver_normalize.py
+  pipelines/gold/correlation.py
+  config/pipeline_config.yml
+  config/environments/dev.yml
+  config/environments/prod.yml
+  jobs/efence_orchestration.yml
+  bundle/databricks.yml
+  tests/test_wifi_transforms.py
+  tests/test_bt_transforms.py
+  tests/fixtures/wifi_sample.json
+  tests/fixtures/bt_sample.json
+
+  Immediate next steps for your engineering team:
+  1. Create the Unity Catalog catalogs, schemas, and volumes (DDL in section 2)
+  2. Create the Databricks Secrets scope and populate mac-hash-salt
+  3. Deploy the asset bundle to dev: databricks bundle deploy --target dev
+  4. Upload sample fixtures to the dev landing volumes and trigger the pipelines manually
+  5. Run pytest tests/ -v locally to validate the transform logic
+  6. Wire the Pi edge agent to POST JSON files to the landing volumes on connectivity resume
+
