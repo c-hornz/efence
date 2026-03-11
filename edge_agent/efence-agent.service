@@ -1,0 +1,35 @@
+# E-Fence systemd service unit
+# Install: sudo cp efence-agent.service /etc/systemd/system/
+#          sudo systemctl daemon-reload
+#          sudo systemctl enable efence-agent
+#          sudo systemctl start efence-agent
+
+[Unit]
+Description=E-Fence RF Edge Agent
+After=network-online.target bluetooth.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/efence
+
+# Databricks PAT — set this in /etc/efence/environment (chmod 600)
+EnvironmentFile=/etc/efence/environment
+
+ExecStart=/usr/bin/python3 -m efence.main --config /etc/efence/config.yaml --log-level INFO
+
+# Restart on crash with a 10s delay
+Restart=on-failure
+RestartSec=10
+
+# Write logs to the journal (view with: journalctl -u efence-agent -f)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=efence-agent
+
+# Limit memory to 256MB — important for long-running Pi processes
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target

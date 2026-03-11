@@ -1,0 +1,40 @@
+# E-Fence Edge Agent Configuration
+# Copy to config.yaml and fill in your values.
+# NEVER put your Databricks token in this file.
+# Set it as an environment variable: export EFENCE_DATABRICKS_TOKEN="dapi..."
+
+sensor:
+  # Unique sensor identifier. Defaults to rpi-<last 8 of Pi serial>.
+  # Override here if you want a human-readable name.
+  id: null                        # e.g. "rpi-north-gate" — null = auto-detect
+  model: "rpi-4b"
+
+  location:
+    fixed: true                   # true = fixed installation, false = mobile
+    latitude: null                # set if fixed, e.g. 37.7749
+    longitude: null               # set if fixed, e.g. -122.4194
+
+databricks:
+  workspace_url: "https://your-workspace.azuredatabricks.net"
+  wifi_volume_path: "/Volumes/efence/wifi_raw/landing"
+  bt_volume_path:   "/Volumes/efence/bt_raw/landing"
+  upload_timeout_seconds: 30
+  max_retries: 3
+
+wifi:
+  enabled: true
+  interface: "wlan0"              # wlan0 = built-in, wlan1 = USB adapter
+  scan_interval_seconds: 15       # how often to run iwlist scan
+  batch_size: 150                 # records per upload file
+
+bluetooth:
+  enabled: true
+  scan_duration_seconds: 8        # how long each BLE scan window lasts
+  scan_interval_seconds: 10       # pause between scan windows
+  batch_size: 300                 # records per upload file
+
+buffer:
+  db_path: "/var/lib/efence/buffer.db"
+  upload_interval_seconds: 60     # how often to flush buffer to Databricks
+  max_records_per_upload: 500     # cap on records sent per upload cycle
+  retain_uploaded_days: 3         # keep uploaded records for N days then purge
