@@ -58,6 +58,16 @@ WIFI_BRONZE_SCHEMA = StructType([
     # Raw / opaque
     StructField("raw_payload",       StringType(),    nullable=True),   # base64 encoded frame
     StructField("metadata",          MapType(StringType(), StringType()), nullable=True),
+
+    # Auto Loader rescued data
+    StructField("_rescued_data",     StringType(),    nullable=True),
+
+    # Pipeline-generated columns
+    StructField("event_id",          StringType(),    nullable=True),
+    StructField("ingest_time",       TimestampType(), nullable=False),
+    StructField("event_date",        StringType(),    nullable=True),
+    StructField("source_path",       StringType(),    nullable=False),
+    StructField("pipeline_id",       StringType(),    nullable=False),
 ])
 
 

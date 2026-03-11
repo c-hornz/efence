@@ -304,23 +304,21 @@ def _stop_active_update(pipeline_id: str):
         print(f"  WARNING: Could not stop active update: {exc}")
 
 
-def trigger_pipeline(pipeline_id: str, name: str, dry_run: bool) -> str:
+def trigger_pipeline(pipeline_id: str, name: str, dry_run: bool, full_refresh: bool = False) -> str:
     """Start a pipeline update. Returns the update_id."""
-    print(f"  Triggering: {name} (id={pipeline_id})")
+    refresh_label = " (FULL REFRESH)" if full_refresh else ""
+    print(f"  Triggering: {name}{refresh_label} (id={pipeline_id})")
     if dry_run:
         print(f"  [DRY RUN] Would POST /api/2.0/pipelines/{pipeline_id}/updates")
         return "dry-run-update-id"
 
+    body = {"full_refresh": full_refresh}
     try:
-        result = _post(f"/api/2.0/pipelines/{pipeline_id}/updates", {
-            "full_refresh": False,
-        })
+        result = _post(f"/api/2.0/pipelines/{pipeline_id}/updates", body)
     except requests.exceptions.HTTPError as exc:
         if exc.response is not None and exc.response.status_code == 409:
             _stop_active_update(pipeline_id)
-            result = _post(f"/api/2.0/pipelines/{pipeline_id}/updates", {
-                "full_refresh": False,
-            })
+            result = _post(f"/api/2.0/pipelines/{pipeline_id}/updates", body)
         else:
             raise
 
@@ -331,7 +329,7 @@ def trigger_pipeline(pipeline_id: str, name: str, dry_run: bool) -> str:
     return update_id
 
 
-def trigger_pipelines(pipeline_ids: dict, dry_run: bool, trigger_gold: bool):
+def trigger_pipelines(pipeline_ids: dict, dry_run: bool, trigger_gold: bool, full_refresh: bool = False):
     print("\n[3/3] Triggering pipeline updates...")
 
     for defn in PIPELINE_DEFS:
@@ -343,7 +341,7 @@ def trigger_pipelines(pipeline_ids: dict, dry_run: bool, trigger_gold: bool):
 
         should_trigger = defn["trigger_on_deploy"] or (trigger_gold and key == "gold")
         if should_trigger:
-            trigger_pipeline(pid, defn["name"], dry_run)
+            trigger_pipeline(pid, defn["name"], dry_run, full_refresh)
         else:
             print(f"  Skipping {defn['name']} (use --all to trigger gold)")
 
@@ -360,6 +358,8 @@ def main():
                         help="Databricks workspace URL, e.g. https://dbc-xxx.cloud.databricks.com")
     parser.add_argument("--all",      action="store_true", default=False,
                         help="Also trigger the gold correlation pipeline")
+    parser.add_argument("--full-refresh", action="store_true", default=False,
+                        help="Full refresh all triggered pipelines (recomputes from scratch)")
     parser.add_argument("--dry-run",  action="store_true", default=False,
                         help="Print what would happen without making API calls")
     args = parser.parse_args()
@@ -390,7 +390,7 @@ def main():
     pipeline_ids = deploy_pipelines(args.dry_run, args.all)
 
     # Step 3: Trigger
-    trigger_pipelines(pipeline_ids, args.dry_run, args.all)
+    trigger_pipelines(pipeline_ids, args.dry_run, args.all, args.full_refresh)
 
     print("\n=== Done ===")
     if not args.dry_run:
