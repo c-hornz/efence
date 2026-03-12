@@ -29,7 +29,7 @@ import requests
 
 WORKSPACE_URL  = None   # set via --workspace arg
 TOKEN          = None   # set via DATABRICKS_TOKEN env var
-REPO_PATH      = "/Repos/efence/efence"
+REPO_PATH      = "/Repos/efence"
 GITHUB_URL     = "https://github.com/c-hornz/efence.git"
 CATALOG        = "efence_dev"
 
