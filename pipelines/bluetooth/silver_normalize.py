@@ -211,6 +211,9 @@ def _normalize_bt(df):
         .transform(_normalize_adv_type)
         .transform(_add_connectable_flag)
 
+        # ---- Manufacturer name placeholder (future: BT SIG lookup) ----
+        .withColumn("manufacturer_name", F.lit(None).cast("string"))
+
         # ---- Signal enrichment ----
         .transform(_compute_path_loss)
         .transform(_estimate_distance)
