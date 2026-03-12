@@ -263,7 +263,7 @@ def copresence_events():
         .withWatermark("event_time", "2 hours")
         .select(
             F.col("event_id").alias("wifi_event_id"),
-            F.col("sensor_id"),
+            F.col("sensor_id").alias("wifi_sensor_id"),
             F.col("event_time").alias("wifi_event_time"),
             F.col("device_id_hash").alias("wifi_device_hash"),
             F.col("rssi_dbm").alias("wifi_rssi_dbm"),
@@ -279,7 +279,7 @@ def copresence_events():
         .withWatermark("event_time", "2 hours")
         .select(
             F.col("event_id").alias("bt_event_id"),
-            F.col("sensor_id"),
+            F.col("sensor_id").alias("bt_sensor_id"),
             F.col("event_time").alias("bt_event_time"),
             F.col("device_id_hash").alias("bt_device_hash"),
             F.col("rssi_dbm").alias("bt_rssi_dbm"),
@@ -293,7 +293,7 @@ def copresence_events():
     joined = wifi_stream.join(
         bt_stream,
         on=(
-            (wifi_stream["sensor_id"] == bt_stream["sensor_id"])
+            (wifi_stream["wifi_sensor_id"] == bt_stream["bt_sensor_id"])
             & (
                 wifi_stream["wifi_event_time"].between(
                     bt_stream["bt_event_time"] - F.expr(f"INTERVAL {window_secs} SECONDS"),
@@ -310,7 +310,7 @@ def copresence_events():
             "copresence_id",
             F.sha2(F.concat_ws("|", F.col("wifi_event_id"), F.col("bt_event_id")), 256),
         )
-        .withColumn("sensor_id",   wifi_stream["sensor_id"])
+        .withColumn("sensor_id",   F.col("wifi_sensor_id"))
         .withColumn("window_start",
             F.least(F.col("wifi_event_time"), F.col("bt_event_time")))
         .withColumn("window_end",
