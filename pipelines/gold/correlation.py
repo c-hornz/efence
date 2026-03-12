@@ -60,6 +60,7 @@ def _conf(key: str, default: str = None) -> str:
         raise RuntimeError(f"Required pipeline config key missing: {key}")
 
 
+CATALOG                 = _conf("efence.gold.catalog", spark.conf.get("pipelines.catalog", "efence"))
 COPRESENCE_WINDOW_SECS  = int(_conf("efence.gold.copresence_window_seconds", "30"))
 PROXIMITY_THRESHOLD_M   = float(_conf("efence.gold.proximity_threshold_m",  "50.0"))
 ALERT_RSSI_THRESHOLD    = int(_conf("efence.gold.alert_rssi_threshold_dbm", "-65"))
@@ -76,7 +77,7 @@ def _read_wifi_silver():
     return (
         spark.readStream
         .option("readChangeFeed", "false")   # append-only silver; no CDF needed
-        .table("efence.wifi_silver.observations")
+        .table(f"{CATALOG}.wifi_silver.observations")
         .select(
             "event_id",
             "sensor_id",
@@ -105,7 +106,7 @@ def _read_bt_silver():
     return (
         spark.readStream
         .option("readChangeFeed", "false")
-        .table("efence.bt_silver.observations")
+        .table(f"{CATALOG}.bt_silver.observations")
         .select(
             "event_id",
             "sensor_id",
