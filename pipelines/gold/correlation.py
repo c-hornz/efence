@@ -363,7 +363,7 @@ PERIMETER_ALERT_SCHEMA = StructType([
     table_properties={
         "quality":                          "gold",
         "delta.autoOptimize.optimizeWrite": "true",
-        "delta.logRetentionDuration":       "interval 2 years",   # retain alerts longer
+        "delta.logRetentionDuration":       "interval 730 days",   # retain alerts longer
     },
     partition_cols=["event_date", "protocol"],
 )
